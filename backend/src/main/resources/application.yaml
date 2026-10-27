@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: HrsBlog
+  datasource:
+    url:
+    username:
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    open-in-view: false
+server:
+  port: 27000
