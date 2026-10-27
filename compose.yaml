@@ -1,0 +1,25 @@
+services:
+  blog-frontend:
+    # image:
+    build:
+      context: ./blog_frontend
+    ports:
+      - "27080:8080"
+
+  admin-frontend:
+    # image:
+    build:
+      context: ./admin_frontend
+    ports:
+      - "27081:8080"
+
+  backend:
+    # image:
+    build:
+      context: ./backend
+    ports:
+      - "27000:27000"
+    environment:
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-}
