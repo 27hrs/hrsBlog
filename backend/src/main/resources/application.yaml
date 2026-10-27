@@ -7,8 +7,11 @@ spring:
     password:
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: true
     open-in-view: false
+  flyway:
+    enabled: true
+    baseline-on-migrate: false
 server:
   port: 27000
