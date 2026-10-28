@@ -101,18 +101,22 @@ jobs:
 
       - name: Validate SSH configuration
         env:
-          SSH_HOST: ${{ vars.SSH_HOST }}
-          SSH_PORT: ${{ vars.SSH_PORT }}
-          SSH_USER: ${{ vars.SSH_USER }}
+          SSH_HOST: ${{ secrets.SSH_HOST || vars.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT || vars.SSH_PORT }}
+          SSH_USER: ${{ secrets.SSH_USER || vars.SSH_USER }}
           SSH_KEY: ${{ secrets.HOST_KEY }}
           SSH_HOST_FINGERPRINT: ${{ secrets.SSH_HOST_FINGERPRINT }}
         run: |
+          missing=0
           for variable in SSH_HOST SSH_PORT SSH_USER SSH_KEY SSH_HOST_FINGERPRINT; do
             if [[ -z "${!variable//[[:space:]]/}" ]]; then
               echo "::error::Missing $variable; see docs/deployment.md."
-              exit 1
+              missing=1
             fi
           done
+          if (( missing != 0 )); then
+            exit 1
+          fi
           if [[ ! "$SSH_HOST" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
             echo '::error::SSH_HOST must be an IPv4 address without a port.'
             exit 1
@@ -150,9 +154,9 @@ jobs:
         env:
           COMPOSE_PAYLOAD: ${{ steps.release.outputs.compose_payload }}
         with:
-          host: ${{ vars.SSH_HOST }}
-          port: ${{ vars.SSH_PORT }}
-          username: ${{ vars.SSH_USER }}
+          host: ${{ secrets.SSH_HOST || vars.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT || vars.SSH_PORT }}
+          username: ${{ secrets.SSH_USER || vars.SSH_USER }}
           key: ${{ secrets.HOST_KEY }}
           passphrase: ${{ secrets.HOST_KEY_PASSPHRASE }}
           fingerprint: ${{ secrets.SSH_HOST_FINGERPRINT }}
@@ -174,9 +178,9 @@ jobs:
       - name: Validate remote Compose
         uses: appleboy/ssh-action@2ead5e36573f08b82fbfce1504f1a4b05a647c6f # v1.2.2
         with:
-          host: ${{ vars.SSH_HOST }}
-          port: ${{ vars.SSH_PORT }}
-          username: ${{ vars.SSH_USER }}
+          host: ${{ secrets.SSH_HOST || vars.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT || vars.SSH_PORT }}
+          username: ${{ secrets.SSH_USER || vars.SSH_USER }}
           key: ${{ secrets.HOST_KEY }}
           passphrase: ${{ secrets.HOST_KEY_PASSPHRASE }}
           fingerprint: ${{ secrets.SSH_HOST_FINGERPRINT }}
@@ -194,9 +198,9 @@ jobs:
       - name: Pull release images
         uses: appleboy/ssh-action@2ead5e36573f08b82fbfce1504f1a4b05a647c6f # v1.2.2
         with:
-          host: ${{ vars.SSH_HOST }}
-          port: ${{ vars.SSH_PORT }}
-          username: ${{ vars.SSH_USER }}
+          host: ${{ secrets.SSH_HOST || vars.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT || vars.SSH_PORT }}
+          username: ${{ secrets.SSH_USER || vars.SSH_USER }}
           key: ${{ secrets.HOST_KEY }}
           passphrase: ${{ secrets.HOST_KEY_PASSPHRASE }}
           fingerprint: ${{ secrets.SSH_HOST_FINGERPRINT }}
@@ -213,9 +217,9 @@ jobs:
       - name: Back up Compose and start services
         uses: appleboy/ssh-action@2ead5e36573f08b82fbfce1504f1a4b05a647c6f # v1.2.2
         with:
-          host: ${{ vars.SSH_HOST }}
-          port: ${{ vars.SSH_PORT }}
-          username: ${{ vars.SSH_USER }}
+          host: ${{ secrets.SSH_HOST || vars.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT || vars.SSH_PORT }}
+          username: ${{ secrets.SSH_USER || vars.SSH_USER }}
           key: ${{ secrets.HOST_KEY }}
           passphrase: ${{ secrets.HOST_KEY_PASSPHRASE }}
           fingerprint: ${{ secrets.SSH_HOST_FINGERPRINT }}
@@ -237,9 +241,9 @@ jobs:
       - name: Check blog frontend
         uses: appleboy/ssh-action@2ead5e36573f08b82fbfce1504f1a4b05a647c6f # v1.2.2
         with:
-          host: ${{ vars.SSH_HOST }}
-          port: ${{ vars.SSH_PORT }}
-          username: ${{ vars.SSH_USER }}
+          host: ${{ secrets.SSH_HOST || vars.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT || vars.SSH_PORT }}
+          username: ${{ secrets.SSH_USER || vars.SSH_USER }}
           key: ${{ secrets.HOST_KEY }}
           passphrase: ${{ secrets.HOST_KEY_PASSPHRASE }}
           fingerprint: ${{ secrets.SSH_HOST_FINGERPRINT }}
@@ -265,9 +269,9 @@ jobs:
       - name: Check admin frontend
         uses: appleboy/ssh-action@2ead5e36573f08b82fbfce1504f1a4b05a647c6f # v1.2.2
         with:
-          host: ${{ vars.SSH_HOST }}
-          port: ${{ vars.SSH_PORT }}
-          username: ${{ vars.SSH_USER }}
+          host: ${{ secrets.SSH_HOST || vars.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT || vars.SSH_PORT }}
+          username: ${{ secrets.SSH_USER || vars.SSH_USER }}
           key: ${{ secrets.HOST_KEY }}
           passphrase: ${{ secrets.HOST_KEY_PASSPHRASE }}
           fingerprint: ${{ secrets.SSH_HOST_FINGERPRINT }}
@@ -293,9 +297,9 @@ jobs:
       - name: Check backend
         uses: appleboy/ssh-action@2ead5e36573f08b82fbfce1504f1a4b05a647c6f # v1.2.2
         with:
-          host: ${{ vars.SSH_HOST }}
-          port: ${{ vars.SSH_PORT }}
-          username: ${{ vars.SSH_USER }}
+          host: ${{ secrets.SSH_HOST || vars.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT || vars.SSH_PORT }}
+          username: ${{ secrets.SSH_USER || vars.SSH_USER }}
           key: ${{ secrets.HOST_KEY }}
           passphrase: ${{ secrets.HOST_KEY_PASSPHRASE }}
           fingerprint: ${{ secrets.SSH_HOST_FINGERPRINT }}
@@ -324,9 +328,9 @@ jobs:
         if: ${{ always() && (steps.upload.outcome == 'success' || steps.upload.outcome == 'failure') }}
         uses: appleboy/ssh-action@2ead5e36573f08b82fbfce1504f1a4b05a647c6f # v1.2.2
         with:
-          host: ${{ vars.SSH_HOST }}
-          port: ${{ vars.SSH_PORT }}
-          username: ${{ vars.SSH_USER }}
+          host: ${{ secrets.SSH_HOST || vars.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT || vars.SSH_PORT }}
+          username: ${{ secrets.SSH_USER || vars.SSH_USER }}
           key: ${{ secrets.HOST_KEY }}
           passphrase: ${{ secrets.HOST_KEY_PASSPHRASE }}
           fingerprint: ${{ secrets.SSH_HOST_FINGERPRINT }}
