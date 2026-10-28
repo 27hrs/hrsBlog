@@ -1,0 +1,344 @@
+name: Build and deploy
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hrsblog-production
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Validate production Compose
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+          SPRING_DATASOURCE_URL: jdbc:mysql://db.example.com:3306/hrs_blog
+          SPRING_DATASOURCE_USERNAME: validation-user
+          SPRING_DATASOURCE_PASSWORD: validation-password
+        run: |
+          docker compose --env-file /dev/null -f compose.production.yaml config --quiet
+          for variable in SPRING_DATASOURCE_URL SPRING_DATASOURCE_USERNAME SPRING_DATASOURCE_PASSWORD; do
+            if env -u "$variable" docker compose --env-file /dev/null \
+                -f compose.production.yaml config --quiet >/dev/null 2>&1; then
+              echo "::error::Compose accepted a missing $variable."
+              exit 1
+            fi
+          done
+
+  build:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: blog-frontend
+            context: ./blog_frontend
+          - service: admin-frontend
+            context: ./admin_frontend
+          - service: backend
+            context: ./backend
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and publish image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: ${{ matrix.context }}
+          platforms: linux/amd64
+          push: true
+          tags: ghcr.io/27hrs/hrsblog-${{ matrix.service }}:${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    steps:
+      - name: Check out deployment files
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Validate SSH configuration
+        env:
+          SSH_HOST: ${{ vars.SSH_HOST }}
+          SSH_PORT: ${{ vars.SSH_PORT }}
+          SSH_USER: ${{ vars.SSH_USER }}
+          SSH_KEY: ${{ secrets.HOST_KEY }}
+          SSH_HOST_FINGERPRINT: ${{ secrets.SSH_HOST_FINGERPRINT }}
+        run: |
+          for variable in SSH_HOST SSH_PORT SSH_USER SSH_KEY SSH_HOST_FINGERPRINT; do
+            if [[ -z "${!variable//[[:space:]]/}" ]]; then
+              echo "::error::Missing $variable; see docs/deployment.md."
+              exit 1
+            fi
+          done
+          if [[ ! "$SSH_HOST" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+            echo '::error::SSH_HOST must be an IPv4 address without a port.'
+            exit 1
+          fi
+          IFS='.' read -r -a octets <<< "$SSH_HOST"
+          for octet in "${octets[@]}"; do
+            if (( 10#$octet > 255 )) || [[ "$octet" =~ ^0[0-9]+$ ]]; then
+              echo '::error::SSH_HOST contains an invalid IPv4 octet.'
+              exit 1
+            fi
+          done
+          if [[ ! "$SSH_PORT" =~ ^[0-9]{1,5}$ ]] || \
+              (( 10#$SSH_PORT < 1 || 10#$SSH_PORT > 65535 )); then
+            echo '::error::SSH_PORT must be between 1 and 65535.'
+            exit 1
+          fi
+          if [[ ! "$SSH_HOST_FINGERPRINT" =~ ^SHA256:[A-Za-z0-9+/]{43}$ ]]; then
+            echo '::error::SSH_HOST_FINGERPRINT must be an OpenSSH SHA256 fingerprint.'
+            exit 1
+          fi
+
+      - name: Prepare release Compose
+        id: release
+        run: |
+          [[ "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$(grep -Fc '${IMAGE_TAG:?IMAGE_TAG is required}' compose.production.yaml)" == 3 ]]
+          sed 's/\${IMAGE_TAG:?IMAGE_TAG is required}/'"$GITHUB_SHA"'/g' \
+            compose.production.yaml > "$RUNNER_TEMP/compose.yaml"
+          payload="$(base64 --wrap=0 "$RUNNER_TEMP/compose.yaml")"
+          printf 'compose_payload=%s\n' "$payload" >> "$GITHUB_OUTPUT"
+
+      - name: Check server and upload Compose
+        id: upload
+        uses: appleboy/ssh-action@2ead5e36573f08b82fbfce1504f1a4b05a647c6f # v1.2.2
+        env:
+          COMPOSE_PAYLOAD: ${{ steps.release.outputs.compose_payload }}
+        with:
+          host: ${{ vars.SSH_HOST }}
+          port: ${{ vars.SSH_PORT }}
+          username: ${{ vars.SSH_USER }}
+          key: ${{ secrets.HOST_KEY }}
+          passphrase: ${{ secrets.HOST_KEY_PASSPHRASE }}
+          fingerprint: ${{ secrets.SSH_HOST_FINGERPRINT }}
+          protocol: tcp4
+          timeout: 30s
+          command_timeout: 1m
+          envs: COMPOSE_PAYLOAD
+          script: |
+            set -eu
+            cd /opt/hrsBlog
+            test -w .
+            test -r .env || { echo 'Missing or unreadable /opt/hrsBlog/.env.' >&2; exit 1; }
+            test -x /usr/bin/docker
+            command -v curl >/dev/null
+            command -v base64 >/dev/null
+            umask 077
+            printf '%s' "$COMPOSE_PAYLOAD" | base64 --decode > .compose.next.yaml
+
+      - name: Validate remote Compose
+        uses: appleboy/ssh-action@2ead5e36573f08b82fbfce1504f1a4b05a647c6f # v1.2.2
+        with:
+          host: ${{ vars.SSH_HOST }}
+          port: ${{ vars.SSH_PORT }}
+          username: ${{ vars.SSH_USER }}
+          key: ${{ secrets.HOST_KEY }}
+          passphrase: ${{ secrets.HOST_KEY_PASSPHRASE }}
+          fingerprint: ${{ secrets.SSH_HOST_FINGERPRINT }}
+          protocol: tcp4
+          timeout: 30s
+          command_timeout: 1m
+          script: |
+            set -eu
+            cd /opt/hrsBlog
+            sudo -n /usr/bin/docker compose \
+              --project-name hrsblog --project-directory /opt/hrsBlog \
+              --env-file /opt/hrsBlog/.env -f /opt/hrsBlog/.compose.next.yaml \
+              config --quiet
+
+      - name: Pull release images
+        uses: appleboy/ssh-action@2ead5e36573f08b82fbfce1504f1a4b05a647c6f # v1.2.2
+        with:
+          host: ${{ vars.SSH_HOST }}
+          port: ${{ vars.SSH_PORT }}
+          username: ${{ vars.SSH_USER }}
+          key: ${{ secrets.HOST_KEY }}
+          passphrase: ${{ secrets.HOST_KEY_PASSPHRASE }}
+          fingerprint: ${{ secrets.SSH_HOST_FINGERPRINT }}
+          protocol: tcp4
+          timeout: 30s
+          command_timeout: 10m
+          script: |
+            set -eu
+            cd /opt/hrsBlog
+            sudo -n /usr/bin/docker compose \
+              --project-name hrsblog --project-directory /opt/hrsBlog \
+              --env-file /opt/hrsBlog/.env -f /opt/hrsBlog/.compose.next.yaml pull
+
+      - name: Back up Compose and start services
+        uses: appleboy/ssh-action@2ead5e36573f08b82fbfce1504f1a4b05a647c6f # v1.2.2
+        with:
+          host: ${{ vars.SSH_HOST }}
+          port: ${{ vars.SSH_PORT }}
+          username: ${{ vars.SSH_USER }}
+          key: ${{ secrets.HOST_KEY }}
+          passphrase: ${{ secrets.HOST_KEY_PASSPHRASE }}
+          fingerprint: ${{ secrets.SSH_HOST_FINGERPRINT }}
+          protocol: tcp4
+          timeout: 30s
+          command_timeout: 4m
+          script: |
+            set -eu
+            cd /opt/hrsBlog
+            if [ -f compose.yaml ]; then
+              cp -p -- compose.yaml compose.previous.yaml
+            fi
+            mv -f -- .compose.next.yaml compose.yaml
+            sudo -n /usr/bin/docker compose \
+              --project-name hrsblog --project-directory /opt/hrsBlog \
+              --env-file /opt/hrsBlog/.env -f /opt/hrsBlog/compose.yaml \
+              up -d --no-build --wait --wait-timeout 180
+
+      - name: Check blog frontend
+        uses: appleboy/ssh-action@2ead5e36573f08b82fbfce1504f1a4b05a647c6f # v1.2.2
+        with:
+          host: ${{ vars.SSH_HOST }}
+          port: ${{ vars.SSH_PORT }}
+          username: ${{ vars.SSH_USER }}
+          key: ${{ secrets.HOST_KEY }}
+          passphrase: ${{ secrets.HOST_KEY_PASSPHRASE }}
+          fingerprint: ${{ secrets.SSH_HOST_FINGERPRINT }}
+          protocol: tcp4
+          timeout: 30s
+          command_timeout: 4m
+          script: |
+            set -eu
+            cd /opt/hrsBlog
+            for attempt in $(seq 1 30); do
+              status="$(curl --silent --noproxy '*' --output /dev/null \
+                --write-out '%{http_code}' --connect-timeout 2 --max-time 5 \
+                http://127.0.0.1:27080/ || true)"
+              if [ "$status" = 200 ]; then
+                echo "blog-frontend: HTTP $status"
+                exit 0
+              fi
+              sleep 2
+            done
+            echo "blog-frontend: HTTP readiness check failed (last status: $status)." >&2
+            exit 1
+
+      - name: Check admin frontend
+        uses: appleboy/ssh-action@2ead5e36573f08b82fbfce1504f1a4b05a647c6f # v1.2.2
+        with:
+          host: ${{ vars.SSH_HOST }}
+          port: ${{ vars.SSH_PORT }}
+          username: ${{ vars.SSH_USER }}
+          key: ${{ secrets.HOST_KEY }}
+          passphrase: ${{ secrets.HOST_KEY_PASSPHRASE }}
+          fingerprint: ${{ secrets.SSH_HOST_FINGERPRINT }}
+          protocol: tcp4
+          timeout: 30s
+          command_timeout: 4m
+          script: |
+            set -eu
+            cd /opt/hrsBlog
+            for attempt in $(seq 1 30); do
+              status="$(curl --silent --noproxy '*' --output /dev/null \
+                --write-out '%{http_code}' --connect-timeout 2 --max-time 5 \
+                http://127.0.0.1:27081/ || true)"
+              if [ "$status" = 200 ]; then
+                echo "admin-frontend: HTTP $status"
+                exit 0
+              fi
+              sleep 2
+            done
+            echo "admin-frontend: HTTP readiness check failed (last status: $status)." >&2
+            exit 1
+
+      - name: Check backend
+        uses: appleboy/ssh-action@2ead5e36573f08b82fbfce1504f1a4b05a647c6f # v1.2.2
+        with:
+          host: ${{ vars.SSH_HOST }}
+          port: ${{ vars.SSH_PORT }}
+          username: ${{ vars.SSH_USER }}
+          key: ${{ secrets.HOST_KEY }}
+          passphrase: ${{ secrets.HOST_KEY_PASSPHRASE }}
+          fingerprint: ${{ secrets.SSH_HOST_FINGERPRINT }}
+          protocol: tcp4
+          timeout: 30s
+          command_timeout: 4m
+          script: |
+            set -eu
+            cd /opt/hrsBlog
+            for attempt in $(seq 1 30); do
+              status="$(curl --silent --noproxy '*' --output /dev/null \
+                --write-out '%{http_code}' --connect-timeout 2 --max-time 5 \
+                http://127.0.0.1:27000/ || true)"
+              case "$status" in
+                2[0-9][0-9]|3[0-9][0-9]|401|403)
+                  echo "backend: HTTP $status"
+                  exit 0
+                  ;;
+              esac
+              sleep 2
+            done
+            echo "backend: HTTP readiness check failed (last status: $status)." >&2
+            exit 1
+
+      - name: Show service status and clean up
+        if: ${{ always() && (steps.upload.outcome == 'success' || steps.upload.outcome == 'failure') }}
+        uses: appleboy/ssh-action@2ead5e36573f08b82fbfce1504f1a4b05a647c6f # v1.2.2
+        with:
+          host: ${{ vars.SSH_HOST }}
+          port: ${{ vars.SSH_PORT }}
+          username: ${{ vars.SSH_USER }}
+          key: ${{ secrets.HOST_KEY }}
+          passphrase: ${{ secrets.HOST_KEY_PASSPHRASE }}
+          fingerprint: ${{ secrets.SSH_HOST_FINGERPRINT }}
+          protocol: tcp4
+          timeout: 30s
+          command_timeout: 1m
+          script: |
+            set -eu
+            cd /opt/hrsBlog
+            trap 'rm -f -- .compose.next.yaml' EXIT
+            if [ -f compose.yaml ]; then
+              sudo -n /usr/bin/docker compose \
+                --project-name hrsblog --project-directory /opt/hrsBlog \
+                --env-file /opt/hrsBlog/.env -f /opt/hrsBlog/compose.yaml ps --all
+            fi

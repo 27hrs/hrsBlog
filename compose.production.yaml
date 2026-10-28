@@ -1,0 +1,24 @@
+name: hrsblog
+
+services:
+  blog-frontend:
+    image: ghcr.io/27hrs/hrsblog-blog-frontend:${IMAGE_TAG:?IMAGE_TAG is required}
+    ports:
+      - "27080:8080"
+    restart: unless-stopped
+
+  admin-frontend:
+    image: ghcr.io/27hrs/hrsblog-admin-frontend:${IMAGE_TAG:?IMAGE_TAG is required}
+    ports:
+      - "27081:8080"
+    restart: unless-stopped
+
+  backend:
+    image: ghcr.io/27hrs/hrsblog-backend:${IMAGE_TAG:?IMAGE_TAG is required}
+    ports:
+      - "27000:27000"
+    environment:
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:?SPRING_DATASOURCE_URL is required}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:?SPRING_DATASOURCE_USERNAME is required}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:?SPRING_DATASOURCE_PASSWORD is required}
+    restart: unless-stopped
