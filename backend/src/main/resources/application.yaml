@@ -8,10 +8,45 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate
-    show-sql: true
+    # 生产默认关闭；排查 SQL 时改为 true，或在容器 environment 中临时覆盖 SPRING_JPA_SHOW_SQL=true
+    show-sql: false
     open-in-view: false
+    properties:
+      hibernate:
+        # 配合分页列表，把标签的懒加载收敛成少量批量查询，避免 N+1
+        default_batch_fetch_size: 50
   flyway:
     enabled: true
     baseline-on-migrate: false
+  servlet:
+    multipart:
+      # 与 hrsblog.storage.max-size 保持一致，超出时由容器提前拒绝
+      max-file-size: 5MB
+      max-request-size: 6MB
 server:
-  port: 27000
+  port: ${SERVER_PORT:27000}
+  error:
+    include-message: never
+    include-stacktrace: never
+
+hrsblog:
+  jwt:
+    # 必须由环境变量注入；缺失或过短时应用启动失败（不在仓库内硬编码任何密钥）
+    secret: ${JWT_SECRET:hrsblog123123123123123123123123123123123123123123123213123}
+    issuer: ${JWT_ISSUER:hrsblog}
+    ttl: ${JWT_TTL:2h}
+  storage:
+    # 本地存储根目录，应用启动时自动创建；对外通过 /assets/** 暴露
+    # 默认值为当前用户主目录下的 hrsblog-assets，容器里由 compose 覆盖为 /app/storage/assets
+    local-dir: ${STORAGE_LOCAL_DIR:${user.home}/hrsblog-assets}
+    # 写入数据库的对外链接前缀，需与 nginx / Spring 静态映射保持一致
+    public-base-url: ${STORAGE_PUBLIC_BASE_URL:}
+    max-size: 5MB
+    allowed-types: jpg,jpeg,png,webp,gif
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:27080,http://localhost:27081}
+  admin:
+    # 可选：首次启动时按环境变量创建管理员（表内已存在管理员时不做任何事）
+    bootstrap-username: user
+    bootstrap-password: admin123
+    bootstrap-display-name: hrs

@@ -1,0 +1,41 @@
+# 测试专用配置：不连生产 MySQL，不跑 Flyway，改由 Hibernate 在内存库建表。
+# 生产环境的表结构仍然只由 Flyway 迁移维护（ddl-auto=validate）。
+spring:
+  datasource:
+    url: jdbc:h2:mem:hrsblog;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+  flyway:
+    enabled: false
+  sql:
+    init:
+      mode: never
+
+hrsblog:
+  jwt:
+    secret: test-only-jwt-secret-please-do-not-use-in-production-0123456789
+    issuer: hrsblog-test
+    ttl: 2h
+  storage:
+    local-dir: target/test-storage/assets
+    public-base-url: https://cdn.test
+    # 测试用小上限，避免构造 5MB 文件拖慢用例；默认值在 application.yaml
+    max-size: 64KB
+    allowed-types: jpg,jpeg,png,webp,gif
+  cors:
+    allowed-origins: http://localhost:27080,http://localhost:27081
+  admin:
+    bootstrap-username: ""
+    bootstrap-password: ""
+
+logging:
+  level:
+    root: WARN
+    com.example.hrsblog: INFO
+    org.springframework.web: WARN
+    org.hibernate.SQL: WARN

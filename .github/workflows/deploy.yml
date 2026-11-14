@@ -30,9 +30,11 @@ jobs:
           SPRING_DATASOURCE_URL: jdbc:mysql://db.example.com:3306/hrs_blog
           SPRING_DATASOURCE_USERNAME: validation-user
           SPRING_DATASOURCE_PASSWORD: validation-password
+          JWT_SECRET: validation-secret-0123456789-0123456789-abcdef
+          CORS_ALLOWED_ORIGINS: http://localhost:27080
         run: |
           docker compose --env-file /dev/null -f compose.production.yaml config --quiet
-          for variable in SPRING_DATASOURCE_URL SPRING_DATASOURCE_USERNAME SPRING_DATASOURCE_PASSWORD; do
+          for variable in SPRING_DATASOURCE_URL SPRING_DATASOURCE_USERNAME SPRING_DATASOURCE_PASSWORD JWT_SECRET CORS_ALLOWED_ORIGINS; do
             if env -u "$variable" docker compose --env-file /dev/null \
                 -f compose.production.yaml config --quiet >/dev/null 2>&1; then
               echo "::error::Compose accepted a missing $variable."

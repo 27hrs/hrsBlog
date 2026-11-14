@@ -21,4 +21,17 @@ services:
       SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:?SPRING_DATASOURCE_URL is required}
       SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:?SPRING_DATASOURCE_USERNAME is required}
       SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:?SPRING_DATASOURCE_PASSWORD is required}
+      # 必填：JWT 签名密钥，至少 32 个字符；轮换方式见 docs/deployment.md
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_TTL: ${JWT_TTL:-2h}
+      # 静态资源链接前缀，对公网域名时填 https://<域名>（由 nginx 或 Spring 提供 /assets/**）
+      STORAGE_PUBLIC_BASE_URL: ${STORAGE_PUBLIC_BASE_URL:-}
+      STORAGE_LOCAL_DIR: /app/storage/assets
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?CORS_ALLOWED_ORIGINS is required}
+    volumes:
+      # 命名卷首次创建会继承镜像内 /app/storage 的属主（app 用户），无需手工 chown
+      - hrsblog-storage:/app/storage
     restart: unless-stopped
+
+volumes:
+  hrsblog-storage:
