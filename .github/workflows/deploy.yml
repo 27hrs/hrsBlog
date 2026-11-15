@@ -104,6 +104,9 @@ jobs:
     needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # 环境级 Secrets/Variables 只有 job 声明 environment 时才可见。
+    # 环境名默认 production；若你的环境叫别的名字，加一个仓库变量 DEPLOY_ENV 覆盖即可。
+    environment: ${{ vars.DEPLOY_ENV || 'production' }}
     steps:
       - name: Check out source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
