@@ -2,9 +2,9 @@ spring:
   application:
     name: HrsBlog
   datasource:
-    url:
-    username:
-    password:
+    url: ${SPRING_DATASOURCE_URL:?SPRING_DATASOURCE_URL is required}
+    username: ${SPRING_DATASOURCE_USERNAME:?SPRING_DATASOURCE_USERNAME is required}
+    password: ${SPRING_DATASOURCE_PASSWORD:?SPRING_DATASOURCE_PASSWORD is required}
   jpa:
     hibernate:
       ddl-auto: validate

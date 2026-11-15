@@ -91,7 +91,9 @@ jobs:
           platforms: linux/amd64
           push: true
           build-args: ${{ matrix.build_args }}
-          tags: ghcr.io/27hrs/hrsblog-${{ matrix.service }}:${{ github.sha }}
+          tags: |
+            ghcr.io/27hrs/hrsblog-${{ matrix.service }}:${{ github.sha }}
+            ghcr.io/27hrs/hrsblog-${{ matrix.service }}:latest
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
