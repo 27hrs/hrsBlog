@@ -2,19 +2,41 @@ name: hrsblog
 
 services:
   blog-frontend:
-    image: ghcr.io/27hrs/hrsblog-blog-frontend:${IMAGE_TAG:?IMAGE_TAG is required}
+    # 默认跟 latest；回滚或精确发布时用 IMAGE_TAG=<sha> ./deploy.sh <sha>
+    image: ghcr.io/27hrs/hrsblog-blog-frontend:${IMAGE_TAG:-latest}
     ports:
       - "27080:8080"
+    volumes:
+      # 文章内容不烤进镜像：./www 由 blog-builder 容器生成，
+      # nginx 每次请求直接读磁盘，内容更新后无需重拉镜像或重启容器。
+      - ./www:/usr/share/nginx/html:ro
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 5s
+
+  # 文章内容不进镜像：./www 由 CI 的 publish-content job 用 rsync 增量写入，
+  # nginx 只读挂载这个目录，内容更新不需要重拉镜像或重启容器。
+
+
 
   admin-frontend:
-    image: ghcr.io/27hrs/hrsblog-admin-frontend:${IMAGE_TAG:?IMAGE_TAG is required}
+    image: ghcr.io/27hrs/hrsblog-admin-frontend:${IMAGE_TAG:-latest}
     ports:
       - "27081:8080"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 5s
 
   backend:
-    image: ghcr.io/27hrs/hrsblog-backend:${IMAGE_TAG:?IMAGE_TAG is required}
+    image: ghcr.io/27hrs/hrsblog-backend:${IMAGE_TAG:-latest}
     ports:
       - "27000:27000"
     environment:

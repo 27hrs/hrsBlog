@@ -3,6 +3,10 @@ name: Build and deploy
 on:
   push:
     branches: [master]
+  # 后端发布文章/改站点设置后，由后端调用 GitHub API 触发（POST /repos/{owner}/{repo}/dispatches）。
+  # 事件名需与后端 hrsblog.deploy.event-type 一致。
+  repository_dispatch:
+    types: [blog-content-updated]
   workflow_dispatch:
 
 permissions:
@@ -55,12 +59,9 @@ jobs:
         include:
           - service: blog-frontend
             context: ./blog_frontend
-            # 仓库 Variables 未配置时回退到本地构建（fixtures + localhost canonical），
-            # 生产环境请设置 BLOG_API_BASE / BLOG_SITE_URL。
-            build_args: |
-              BLOG_API_BASE=${{ vars.BLOG_API_BASE }}
-              BLOG_SITE_URL=${{ vars.BLOG_SITE_URL || 'http://localhost:27080' }}
-              BLOG_SYNC_STRICT=${{ vars.BLOG_SYNC_STRICT || '0' }}
+            # 镜像里只有 nginx 与站点配置，不含任何文章正文。
+            # 内容由下面的 publish-content job 构建后用 rsync 直接写入服务器目录。
+            build_args: ''
           - service: admin-frontend
             context: ./admin_frontend
             build_args: ''
@@ -99,6 +100,75 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+  # 内容发布：在 CI 里构建静态站点，用 rsync 增量同步到服务器。
+  # 不产生镜像、不重启容器；服务器侧的 nginx 直接读 ./www。
+  publish-content:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Build static site
+        env:
+          BLOG_API_BASE: ${{ vars.BLOG_API_BASE }}
+          BLOG_SITE_URL: ${{ vars.BLOG_SITE_URL }}
+          BLOG_SYNC_STRICT: ${{ vars.BLOG_SYNC_STRICT || '1' }}
+        run: |
+          set -euo pipefail
+          if [ -z "${BLOG_API_BASE//[[:space:]]/}" ]; then
+            echo "::error::缺少 BLOG_API_BASE；继续构建只会产出 fixtures，已中止。"
+            exit 1
+          fi
+          # 与 Dockerfile 相同的工具链，避免 runner 上的 Node 版本漂移
+          docker run --rm \
+            -v "$PWD/blog_frontend:/app" -w /app \
+            -e BLOG_API_BASE -e BLOG_SITE_URL -e BLOG_SYNC_STRICT \
+            node:22-alpine \
+            sh -c 'corepack enable && corepack prepare pnpm@10.34.1 --activate \
+                   && pnpm install --frozen-lockfile && pnpm build'
+
+      - name: Prepare SSH
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_HOST_FINGERPRINT: ${{ secrets.SSH_HOST_FINGERPRINT }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" | tr -d '\r' > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          port="${SSH_PORT:-22}"
+          ssh-keyscan -p "$port" -H "$SSH_HOST" > ~/.ssh/known_hosts 2>/dev/null
+          expected="${SSH_HOST_FINGERPRINT#SHA256:}"
+          if [ -z "$expected" ] || \
+             ! ssh-keygen -lf ~/.ssh/known_hosts | grep -qF "SHA256:$expected"; then
+            echo "::error::SSH 主机指纹与 SSH_HOST_FINGERPRINT 不一致，已中止。"
+            exit 1
+          fi
+
+      - name: Rsync content to server
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+        run: |
+          set -euo pipefail
+          port="${SSH_PORT:-22}"
+          # 不用 -a：hrs 不是 root，-a 会试图改属主而报错
+          rsync -rlptz --no-owner --no-group --delete --delay-updates \
+            --chmod=D755,F644 --itemize-changes \
+            -e "ssh -p $port -i ~/.ssh/deploy_key \
+                -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes" \
+            blog_frontend/.vitepress/dist/ \
+            "$SSH_USER@$SSH_HOST:/opt/hrsBlog/www/"
+          echo "已同步 $(find blog_frontend/.vitepress/dist -type f | wc -l) 个文件"
 
 #  deploy:
 #    needs: build

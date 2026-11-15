@@ -1,26 +1,17 @@
-FROM node:22-alpine AS build
-
-WORKDIR /app
-
-RUN corepack enable && corepack prepare pnpm@10.34.1 --activate
-
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
-
-COPY . .
-
-ARG BLOG_API_BASE=""
-ARG BLOG_SITE_URL=""
-ARG BLOG_SYNC_STRICT="0"
-ENV BLOG_API_BASE=$BLOG_API_BASE \
-    BLOG_SITE_URL=$BLOG_SITE_URL \
-    BLOG_SYNC_STRICT=$BLOG_SYNC_STRICT
-
-RUN pnpm build
-
+# 本镜像只提供 nginx 与站点配置，**不包含任何文章内容**。
+#
+# 内容通过 /usr/share/nginx/html 的 volume 挂载提供：
+#   ./www:/usr/share/nginx/html:ro
+# GitHub Actions 的 publish-content job 用 rsync 把 dist 直接写进 ./www，
+# 因此公开镜像被任何人拉走也不会带上你的文章正文。
 FROM nginxinc/nginx-unprivileged:alpine
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /app/.vitepress/dist /usr/share/nginx/html
+
+# 内容未挂载时给出可读的提示，而不是空白页或 403
+RUN printf '%s\n' \
+      '<!doctype html><meta charset="utf-8"><title>HrsBlog</title>' \
+      '<p>内容未挂载：请检查 compose 中的 ./www:/usr/share/nginx/html 挂载。</p>' \
+      > /usr/share/nginx/html/index.html
 
 EXPOSE 8080
