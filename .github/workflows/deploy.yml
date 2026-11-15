@@ -130,6 +130,25 @@ jobs:
             sh -c 'corepack enable && corepack prepare pnpm@10.34.1 --activate \
                    && pnpm install --frozen-lockfile && pnpm build'
 
+      - name: Validate SSH secrets
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_HOST_FINGERPRINT: ${{ secrets.SSH_HOST_FINGERPRINT }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in SSH_HOST SSH_PORT SSH_USER SSH_KEY SSH_HOST_FINGERPRINT; do
+            if [ -z "${!name//[[:space:]]/}" ]; then
+              echo "::error::缺少 $name —— 请到 Settings → Secrets and variables → Actions → Secrets 添加"
+              missing=1
+            fi
+          done
+          [ "$missing" = 0 ] || exit 1
+          echo "SSH secrets 已配置：$SSH_USER@$SSH_HOST:$SSH_PORT"
+
       - name: Prepare SSH
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
@@ -142,7 +161,12 @@ jobs:
           printf '%s\n' "$SSH_KEY" | tr -d '\r' > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           port="${SSH_PORT:-22}"
-          ssh-keyscan -p "$port" -H "$SSH_HOST" > ~/.ssh/known_hosts 2>/dev/null
+          # 主机不可达时不让 set -e 直接退出，交给下面的指纹校验给出明确提示
+          ssh-keyscan -p "$port" -H "$SSH_HOST" > ~/.ssh/known_hosts 2>/dev/null || true
+          if [ ! -s ~/.ssh/known_hosts ]; then
+            echo "::error::无法从 $SSH_HOST:$port 获取主机密钥，请检查 SSH_HOST / SSH_PORT 和防火墙。"
+            exit 1
+          fi
           expected="${SSH_HOST_FINGERPRINT#SHA256:}"
           if [ -z "$expected" ] || \
              ! ssh-keygen -lf ~/.ssh/known_hosts | grep -qF "SHA256:$expected"; then
