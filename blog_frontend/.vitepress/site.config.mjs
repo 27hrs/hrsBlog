@@ -1,7 +1,10 @@
 /**
- * Single source of truth for site identity and editorial configuration.
- * The backend has no public settings endpoint yet; replace these values when
- * the admin settings API is available.
+ * Local defaults for site identity and editorial configuration.
+ * `scripts/sync-settings.mjs` runs before every build: it fetches the public
+ * site settings from the backend (`GET /api/visitors/settings`, managed in the
+ * admin panel) and writes the merged result to `.vitepress/data/site-settings.json`,
+ * which `config.mjs` consumes. Values configured in the admin panel override
+ * the defaults below; anything missing or blank keeps these local values.
  */
 export const siteConfig = {
   name: 'HrsBlog',

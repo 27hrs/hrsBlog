@@ -56,7 +56,7 @@ async function saveAllSettings() {
   }
 
   if (result.localOnly) {
-    toast.warning('设置已保存到本机。当前后端尚未提供站点设置接口。')
+    toast.warning('设置已保存到本机。后端接口暂不可达，恢复连接后请重新保存。')
   } else {
     toast.success('所有设置已保存')
   }

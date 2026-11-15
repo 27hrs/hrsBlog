@@ -22,9 +22,10 @@ VitePress 1.6.4 + 完全自定义主题的静态博客。内容来自 HrsBlog �
 pnpm dev          # 同步内容 + vitepress dev，端口 27080
 pnpm dev:offline  # 使用 fixtures，不请求 API
 pnpm seed         # 只用 fixtures 生成 6 篇演示文章
-pnpm sync         # 从 API 同步文章、封面、feed、robots（需要 BLOG_API_BASE）
+pnpm sync          # 从 API 同步文章、封面、feed、robots（需要 BLOG_API_BASE）
+pnpm sync:settings # 只同步后台站点设置
 pnpm clean        # 清空 .vitepress/dist
-pnpm build        # sync（配置了 API 时）+ clean + build + verify
+pnpm build        # sync settings + sync（配置了 API 时）+ clean + build + verify
 pnpm preview      # 预览构建产物，端口 27080
 pnpm verify       # 校验静态产物、sitemap、feed、陈旧页面
 ```
@@ -82,6 +83,7 @@ vitepress build → .vitepress/dist（静态 HTML）
 |---|---|
 | `api/client.js` | `{code,message,data}` 解包、`ApiError`、超时、429/5xx 重试、GET/JSON |
 | `api/articles.js` | 列表分页、详情、`listAllArticles`、`getArticleDetails`、slug 校验 |
+| `api/settings.js` | 访客站点设置（`GET /visitors/settings`）读取与响应形状校验 |
 | `api/assets.js` | 封面 URL 安全校验、绝对地址解析 |
 | `api/config.js` | `BLOG_API_BASE` / `BLOG_SITE_URL` / 严格模式等配置解析 |
 | `api/index.js` | 统一出口 |
@@ -92,7 +94,8 @@ vitepress build → .vitepress/dist（静态 HTML）
 
 | 内容 | 文件 |
 |---|---|
-| 站点身份、社交、友链、精选 | `.vitepress/site.config.mjs` |
+| 站点身份、社交、友链、精选（本地默认值） | `.vitepress/site.config.mjs` |
+| 设置合并（接口值覆盖默认值） | `scripts/sync-settings.mjs`、`scripts/lib/site-settings.mjs` |
 | 导航、markdown、sitemap、head | `.vitepress/config.mjs` |
 | SEO（canonical/OG/JSON-LD） | `.vitepress/seo.mjs` |
 | 首页 | `.vitepress/theme/views/HomeView.vue` |

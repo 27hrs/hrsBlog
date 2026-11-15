@@ -1,6 +1,42 @@
+<script setup>
+import { computed } from 'vue'
+import { useData } from 'vitepress'
+
+/**
+ * 背景图来源：
+ * - 后台「站点设置 → 外观」配置了 `backgroundImage`（http(s) 或站内路径）时使用它；
+ * - 未配置时回退到内置湖景响应式版本（AVIF/WebP/JPG 三档）。
+ * `backgroundOverlay`（0-100）映射为 `--backdrop-veil`，控制纸面遮罩强度。
+ */
+const { theme } = useData()
+const site = computed(() => theme.value.site || {})
+
+const customImage = computed(() => {
+  const url = String(site.value.backgroundImage ?? '').trim()
+  if (!url) return ''
+  return /^https?:\/\//i.test(url) || url.startsWith('/') ? url : ''
+})
+
+const veil = computed(() => {
+  const value = Number(site.value.backgroundOverlay)
+  if (!Number.isFinite(value)) return null
+  return Math.min(100, Math.max(0, value)) / 100
+})
+</script>
+
 <template>
-  <div class="backdrop" aria-hidden="true">
-    <picture class="backdrop__picture">
+  <div class="backdrop" aria-hidden="true" :style="veil !== null ? { '--backdrop-veil': veil } : undefined">
+    <picture v-if="customImage" class="backdrop__picture">
+      <img
+        class="backdrop__image"
+        :src="customImage"
+        alt=""
+        fetchpriority="high"
+        decoding="async"
+        loading="eager"
+      />
+    </picture>
+    <picture v-else class="backdrop__picture">
       <source
         type="image/avif"
         srcset="/images/hero-1600.avif 1600w, /images/hero-2400.avif 2400w"

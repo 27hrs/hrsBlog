@@ -1,9 +1,13 @@
 import { request } from './client.js'
 
 /**
- * Settings are designed to be backend-agnostic. The current backend has no
- * settings controller, so callers persist the same shape to localStorage and
- * treat a 404/405 as "remote unavailable" rather than a fatal error.
+ * 站点设置接口对接：
+ * - GET /admin/settings → `{ values: {key: value} }`，读取全部配置（含私密项）；
+ * - PUT /admin/settings，body `{ settings: {key: value} }`，整体替换保存；
+ *   未知 key 或值不合法时返回 400，data 中带字段级错误。
+ *
+ * 404/405（旧后端未提供接口）按“远端不可用”处理，store 会回退 localStorage，
+ * 不视为致命错误。
  */
 export async function fetchSiteSettings() {
   try {
