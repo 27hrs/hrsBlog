@@ -1,0 +1,476 @@
+/* ==========================================================================
+   HrsBlog Admin · Design tokens
+   A three-layer token system:
+   1. Primitives — raw palette, type, space, radius, motion (theme agnostic)
+   2. Semantic   — meaning-bearing surface / text / state colors (light + dark)
+   3. Components — layout and control defaults consumed by base + views
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Primitive tokens
+   -------------------------------------------------------------------------- */
+:root {
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+
+  --text-2xs: 0.6875rem; /* 11px */
+  --text-xs: 0.75rem; /* 12px */
+  --text-sm: 0.8125rem; /* 13px */
+  --text-base: 0.875rem; /* 14px */
+  --text-md: 0.9375rem; /* 15px */
+  --text-lg: 1rem; /* 16px */
+  --text-xl: 1.125rem; /* 18px */
+  --text-2xl: 1.25rem; /* 20px */
+  --text-3xl: 1.5rem; /* 24px */
+  --text-4xl: 2rem; /* 32px */
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  --leading-tight: 1.25;
+  --leading-snug: 1.4;
+  --leading-normal: 1.6;
+
+  --space-0: 0;
+  --space-0-5: 2px;
+  --space-1: 4px;
+  --space-1-5: 6px;
+  --space-2: 8px;
+  --space-2-5: 10px;
+  --space-3: 12px;
+  --space-3-5: 14px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-full: 999px;
+
+  --gray-0: #ffffff;
+  --gray-25: #fbfbfc;
+  --gray-50: #f7f8fa;
+  --gray-75: #f4f5f7;
+  --gray-100: #f0f2f5;
+  --gray-150: #eaedf2;
+  --gray-200: #e4e7ec;
+  --gray-300: #d5dae3;
+  --gray-400: #adb5c2;
+  --gray-500: #8b94a3;
+  --gray-600: #667080;
+  --gray-700: #4c5564;
+  --gray-800: #323a47;
+  --gray-850: #272d37;
+  --gray-900: #1e232c;
+  --gray-950: #15181e;
+
+  --blue-50: #eff6ff;
+  --blue-100: #dbeafe;
+  --blue-200: #bfdbfe;
+  --blue-300: #93c5fd;
+  --blue-400: #60a5fa;
+  --blue-500: #3b82f6;
+  --blue-600: #2563eb;
+  --blue-700: #1d4ed8;
+  --blue-950: #172554;
+
+  --green-50: #ecfdf3;
+  --green-500: #16a34a;
+  --green-600: #15803d;
+  --green-400: #4ade80;
+  --green-300: #86efac;
+
+  --amber-50: #fffbeb;
+  --amber-500: #d97706;
+  --amber-600: #b45309;
+  --amber-400: #fbbf24;
+  --amber-300: #fcd34d;
+
+  --red-50: #fef2f2;
+  --red-500: #dc2626;
+  --red-600: #b91c1c;
+  --red-400: #f87171;
+  --red-300: #fca5a5;
+
+  --cyan-50: #ecfeff;
+  --cyan-500: #0891b2;
+  --cyan-600: #0e7490;
+  --cyan-400: #38bdf8;
+  --cyan-300: #7dd3fc;
+
+  --violet-50: #f5f3ff;
+  --violet-500: #7c3aed;
+  --violet-400: #a78bfa;
+
+  --duration-instant: 90ms;
+  --duration-fast: 140ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  --z-base: 0;
+  --z-sticky: 20;
+  --z-sidebar: 40;
+  --z-overlay: 80;
+  --z-toast: 100;
+
+  /* Primitive shadows: intentionally quiet, never decorative. */
+  --shadow-xs: 0 1px 2px rgb(16 24 40 / 4%);
+  --shadow-sm: 0 1px 2px rgb(16 24 40 / 5%), 0 2px 6px rgb(16 24 40 / 3%);
+  --shadow-md: 0 8px 24px rgb(16 24 40 / 8%), 0 2px 6px rgb(16 24 40 / 4%);
+  --shadow-lg: 0 18px 48px rgb(16 24 40 / 12%), 0 4px 12px rgb(16 24 40 / 5%);
+}
+
+/* --------------------------------------------------------------------------
+   2. Semantic tokens · light
+   -------------------------------------------------------------------------- */
+:root,
+[data-theme='light'] {
+  color-scheme: light;
+
+  --bg-app: var(--gray-50);
+  --bg-surface: #ffffff;
+  --bg-elevated: #ffffff;
+  --bg-inset: var(--gray-75);
+  --bg-subtle: var(--gray-100);
+  --bg-hover: #f2f4f7;
+  --bg-active: #edf1f6;
+  --bg-sidebar: #fbfbfc;
+  --bg-header: rgb(255 255 255 / 86%);
+  --bg-backdrop: rgb(20 25 34 / 42%);
+  --bg-code: #f5f6f8;
+  --bg-checker:
+    linear-gradient(45deg, #eef0f4 25%, transparent 25%),
+    linear-gradient(-45deg, #eef0f4 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #eef0f4 75%),
+    linear-gradient(-45deg, transparent 75%, #eef0f4 75%);
+
+  --text-primary: #1d222c;
+  --text-secondary: #5e6877;
+  --text-tertiary: #8d96a4;
+  --text-disabled: #b3bac5;
+  --text-inverse: #ffffff;
+  --text-link: var(--blue-600);
+
+  --border-subtle: #eef0f4;
+  --border: #e3e7ed;
+  --border-strong: #cfd6e1;
+  --border-inverse: rgb(255 255 255 / 16%);
+
+  --brand: var(--blue-500);
+  --brand-hover: var(--blue-600);
+  --brand-active: var(--blue-700);
+  --brand-soft: var(--blue-50);
+  --brand-soft-strong: var(--blue-100);
+  --brand-text: var(--blue-600);
+  --on-brand: #ffffff;
+
+  --success: var(--green-500);
+  --success-hover: var(--green-600);
+  --success-soft: var(--green-50);
+  --success-text: var(--green-600);
+
+  --warning: var(--amber-500);
+  --warning-soft: var(--amber-50);
+  --warning-text: var(--amber-600);
+
+  --danger: var(--red-500);
+  --danger-hover: var(--red-600);
+  --danger-soft: var(--red-50);
+  --danger-text: var(--red-600);
+
+  --info: var(--cyan-500);
+  --info-soft: var(--cyan-50);
+  --info-text: var(--cyan-600);
+
+  --accent-violet: var(--violet-500);
+  --accent-violet-soft: var(--violet-50);
+
+  --chart-brand: var(--blue-500);
+  --chart-secondary: #94a3b8;
+  --chart-grid: #edf0f4;
+  --chart-axis: #8d96a4;
+  --chart-tooltip-bg: #1d222c;
+
+  --scrollbar-thumb: #d3d9e2;
+  --scrollbar-thumb-hover: #b8c0cc;
+  --selection-bg: var(--blue-100);
+  --focus-ring: rgb(59 130 246 / 28%);
+  --skeleton-base: #eef1f5;
+  --skeleton-shine: #f7f8fa;
+
+  --shadow-card: var(--shadow-xs);
+  --shadow-popover: var(--shadow-lg);
+  --shadow-modal: 0 24px 64px rgb(16 24 40 / 18%);
+
+  /* Layer 3 · component defaults */
+  --control-height: 36px;
+  --control-height-sm: 30px;
+  --control-height-lg: 42px;
+  --control-radius: var(--radius-sm);
+  --header-height: 60px;
+  --sidebar-width: 240px;
+  --sidebar-collapsed-width: 72px;
+  --footer-height: 44px;
+  --content-max: 1560px;
+  --page-pad-x: clamp(20px, 3vw, 40px);
+  --page-pad-y: 30px;
+
+  --header-bg: var(--bg-header);
+  --sidebar-bg: var(--bg-sidebar);
+  --card-bg: var(--bg-surface);
+  --card-border: var(--border);
+  --card-radius: var(--radius-md);
+  --input-bg: var(--bg-surface);
+  --input-border: var(--border-strong);
+  --table-head-bg: var(--bg-inset);
+  --table-row-hover: #f8fafc;
+  --table-border: var(--border-subtle);
+  --tooltip-bg: #202631;
+  --tooltip-text: #f7f8fa;
+
+  --ease-theme: color var(--duration-base) var(--ease-out),
+    background-color var(--duration-base) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out);
+}
+
+/* --------------------------------------------------------------------------
+   2. Semantic tokens · dark
+   No pure black: depth comes from layered charcoal surfaces and borders.
+   -------------------------------------------------------------------------- */
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg-app: #16181d;
+  --bg-surface: #1f2228;
+  --bg-elevated: #24282f;
+  --bg-inset: #1a1d22;
+  --bg-subtle: #252930;
+  --bg-hover: #272b33;
+  --bg-active: #2d323c;
+  --bg-sidebar: #181a1f;
+  --bg-header: rgb(22 24 29 / 84%);
+  --bg-backdrop: rgb(5 7 10 / 64%);
+  --bg-code: #191c21;
+  --bg-checker:
+    linear-gradient(45deg, #24282f 25%, transparent 25%),
+    linear-gradient(-45deg, #24282f 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #24282f 75%),
+    linear-gradient(-45deg, transparent 75%, #24282f 75%);
+
+  --text-primary: #e8eaee;
+  --text-secondary: #a4adba;
+  --text-tertiary: #77818f;
+  --text-disabled: #535b67;
+  --text-inverse: #11151b;
+  --text-link: var(--blue-300);
+
+  --border-subtle: #262a31;
+  --border: #2d323b;
+  --border-strong: #3b424e;
+  --border-inverse: rgb(0 0 0 / 22%);
+
+  --brand: var(--blue-400);
+  --brand-hover: var(--blue-300);
+  --brand-active: var(--blue-200);
+  --brand-soft: rgb(96 165 250 / 10%);
+  --brand-soft-strong: rgb(96 165 250 / 17%);
+  --brand-text: var(--blue-300);
+  --on-brand: #0c1727;
+
+  --success: var(--green-400);
+  --success-hover: var(--green-300);
+  --success-soft: rgb(74 222 128 / 10%);
+  --success-text: var(--green-300);
+
+  --warning: var(--amber-400);
+  --warning-soft: rgb(251 191 36 / 10%);
+  --warning-text: var(--amber-300);
+
+  --danger: var(--red-400);
+  --danger-hover: var(--red-300);
+  --danger-soft: rgb(248 113 113 / 10%);
+  --danger-text: var(--red-300);
+
+  --info: var(--cyan-400);
+  --info-soft: rgb(56 189 248 / 10%);
+  --info-text: var(--cyan-300);
+
+  --accent-violet: var(--violet-400);
+  --accent-violet-soft: rgb(167 139 250 / 10%);
+
+  --chart-brand: var(--blue-400);
+  --chart-secondary: #667384;
+  --chart-grid: #2b3038;
+  --chart-axis: #77818f;
+  --chart-tooltip-bg: #e8eaee;
+
+  --scrollbar-thumb: #353b45;
+  --scrollbar-thumb-hover: #49515d;
+  --selection-bg: rgb(96 165 250 / 24%);
+  --focus-ring: rgb(96 165 250 / 36%);
+  --skeleton-base: #262b32;
+  --skeleton-shine: #2d333c;
+
+  /* In dark mode, borders replace most elevation shadows. */
+  --shadow-card: none;
+  --shadow-popover: 0 18px 48px rgb(0 0 0 / 46%);
+  --shadow-modal: 0 28px 80px rgb(0 0 0 / 56%);
+
+  --table-row-hover: #23272e;
+  --table-head-bg: #1b1e23;
+  --input-bg: #1b1e23;
+  --tooltip-bg: #e8eaee;
+  --tooltip-text: #15181e;
+}
+
+/* --------------------------------------------------------------------------
+   Base document
+   -------------------------------------------------------------------------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  min-height: 100%;
+  background: var(--bg-app);
+  -webkit-text-size-adjust: 100%;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  color: var(--text-primary);
+  background: var(--bg-app);
+}
+
+#app {
+  min-height: 100vh;
+}
+
+::selection {
+  color: var(--text-primary);
+  background: var(--selection-bg);
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  color: inherit;
+}
+
+a {
+  color: var(--text-link);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin: 0;
+}
+
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+}
+
+hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  background-clip: padding-box;
+  border: 3px solid transparent;
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  background-clip: padding-box;
+  border: 3px solid transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* A restrained cross-fade when the user changes theme. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 240ms;
+  animation-timing-function: var(--ease-out);
+}

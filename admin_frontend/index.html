@@ -1,10 +1,32 @@
 <!DOCTYPE html>
-<html lang="">
+<html lang="zh-CN">
   <head>
-    <meta charset="UTF-8">
-    <link rel="icon" href="/favicon.ico">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vite App</title>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f7f8fa" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#16181d" media="(prefers-color-scheme: dark)" />
+    <meta name="description" content="HrsBlog 内容管理后台" />
+    <title>HrsBlog · 管理后台</title>
+    <script>
+      ;(() => {
+        try {
+          const saved = localStorage.getItem('hrsblog-theme') || 'system'
+          const mode = ['light', 'dark', 'system'].includes(saved) ? saved : 'system'
+          const resolved =
+            mode === 'system'
+              ? window.matchMedia('(prefers-color-scheme: dark)').matches
+                ? 'dark'
+                : 'light'
+              : mode
+          document.documentElement.dataset.theme = resolved
+          document.documentElement.dataset.themeMode = mode
+          document.documentElement.style.colorScheme = resolved
+        } catch {
+          document.documentElement.dataset.theme = 'light'
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="app"></div>
