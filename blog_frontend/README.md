@@ -129,6 +129,8 @@ docker build \
   -t hrsblog-blog .
 ```
 
+GitHub Actions 的构建参数从仓库 **Variables** 读取（`BLOG_API_BASE`、`BLOG_SITE_URL`、可选的 `BLOG_SYNC_STRICT`）。未配置时仍会构建成功：使用 fixtures，`BLOG_SITE_URL` 回退到 `http://localhost:27080`；正式部署前请在仓库 Variables 中配置真实值。
+
 `nginx.conf` 已适配 SSG：
 
 - clean URL `try_files $uri $uri.html $uri/ =404`；

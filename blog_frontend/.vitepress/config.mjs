@@ -75,7 +75,7 @@ export default defineConfig({
   appearance: false,
   lastUpdated: false,
   srcExclude: ['README.md', 'scripts/**', 'api/**'],
-  sitemap: siteUrl ? { hostname: siteUrl } : undefined,
+  sitemap: { hostname: effectiveSiteUrl },
   transformHead: createHeadTransform({
     siteUrl: effectiveSiteUrl,
     siteConfig: withUrl,

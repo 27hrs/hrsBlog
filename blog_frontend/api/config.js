@@ -13,7 +13,8 @@ export function resolveApiBase(explicit, fallback = '') {
 }
 
 export function resolveSiteUrl(explicit, fallback = 'http://localhost:27080') {
-  const value = explicit !== undefined ? explicit : (readEnv('BLOG_SITE_URL') ?? fallback)
+  const raw = explicit !== undefined ? explicit : readEnv('BLOG_SITE_URL')
+  const value = raw === undefined || raw === null || String(raw).trim() === '' ? fallback : raw
   return String(value).trim().replace(/\/+$/, '')
 }
 
