@@ -15,11 +15,11 @@ ENV_FILE=".env"
 [ -f "$COMPOSE_FILE" ] || { echo "缺少 $COMPOSE_FILE" >&2; exit 1; }
 [ -r "$ENV_FILE" ]     || { echo "缺少或不可读 $ENV_FILE" >&2; exit 1; }
 
-# 文章内容不在镜像里：./www 由 CI 的 publish-content job 用 rsync 写入。
-if [ ! -d www ] || [ -z "$(ls -A www 2>/dev/null)" ]; then
+# 博客静态产物由 CI 同步到 ./www，由宿主机 nginx 直接提供；这里只做存在性提示。
+if [ ! -d www ]; then
   mkdir -p www
-  echo "提示：./www 目前为空，27080 只会显示占位页。" >&2
-  echo "      先在 GitHub Actions 跑一次 publish-content（或手动 rsync）再访问。" >&2
+  echo "提示：./www 还不存在，已创建。" >&2
+  echo "      先在 GitHub Actions 跑一次 publish-content，宿主机 nginx 才有内容可提供。" >&2
 fi
 
 # 命令行参数优先，其次 .env 里的 IMAGE_TAG，最后回退 latest

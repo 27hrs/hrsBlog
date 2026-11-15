@@ -57,11 +57,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - service: blog-frontend
-            context: ./blog_frontend
-            # 镜像里只有 nginx 与站点配置，不含任何文章正文。
-            # 内容由下面的 publish-content job 构建后用 rsync 直接写入服务器目录。
-            build_args: ''
+          # blog-frontend 不再构建镜像：静态产物由下面的 publish-content job
+          # 直接 rsync 到服务器，由宿主机 nginx 提供。
           - service: admin-frontend
             context: ./admin_frontend
             build_args: ''
