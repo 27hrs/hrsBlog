@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="480" viewBox="0 0 720 480" fill="none">
+  <rect width="720" height="480" fill="#EFE9DC"/>
+  <path d="M48 48H672" stroke="#1C241F" stroke-opacity=".14"/>
+  <path d="M48 432H672" stroke="#1C241F" stroke-opacity=".14"/>
+
+  <rect x="202" y="104" width="330" height="244" fill="#E7DFCF" stroke="#1C241F" stroke-opacity=".16"/>
+  <rect x="181" y="124" width="330" height="244" fill="#F6F2E8" stroke="#1C241F" stroke-opacity=".18"/>
+  <rect x="160" y="144" width="330" height="244" fill="#1D3A30" stroke="#1C241F" stroke-opacity=".22"/>
+
+  <path d="M190 178H290" stroke="#C47C4C" stroke-width="1"/>
+  <path d="M190 192H244" stroke="#F6F2E8" stroke-opacity=".28"/>
+  <text x="189" y="312" font-family="Georgia, 'Times New Roman', serif" font-size="96" font-style="italic" fill="#F6F2E8" letter-spacing="-4">VP</text>
+  <text x="190" y="350" font-family="Consolas, 'SFMono-Regular', monospace" font-size="11" letter-spacing="4" fill="#C47C4C">STATIC / 03</text>
+  <circle cx="458" cy="170" r="6" fill="#C47C4C"/>
+
+  <text x="48" y="88" font-family="Consolas, 'SFMono-Regular', monospace" font-size="10" letter-spacing="4" fill="#9A5A35">NOT A DOCS SITE</text>
+  <text x="672" y="404" text-anchor="end" font-family="Consolas, 'SFMono-Regular', monospace" font-size="10" letter-spacing="4" fill="#68736A">FIELD NOTE / 03</text>
+</svg>

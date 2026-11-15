@@ -1,4 +1,13 @@
 node_modules
+.vitepress/cache
+.vitepress/dist
+.vitepress/data
+/articles/*.md
+!/articles/index.md
+/public/feed.xml
+/public/robots.txt
+/public/assets
+build.log
 dist
 coverage
 .git

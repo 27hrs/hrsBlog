@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="480" viewBox="0 0 720 480" fill="none">
+  <rect width="720" height="480" fill="#EFE9DC"/>
+
+  <g transform="translate(60 62)">
+    <rect width="96" height="292" fill="#1D3A30"/>
+    <rect x="108" width="96" height="292" fill="#9A5A35"/>
+    <rect x="216" width="96" height="292" fill="#E7DFCF"/>
+    <rect x="324" width="96" height="292" fill="#4C574F"/>
+    <rect x="432" width="96" height="292" fill="#1C241F"/>
+    <rect x="540" width="60" height="292" fill="#F6F2E8"/>
+
+    <text x="8" y="318" font-family="Consolas, 'SFMono-Regular', monospace" font-size="9" letter-spacing="2" fill="#68736A">01</text>
+    <text x="116" y="318" font-family="Consolas, 'SFMono-Regular', monospace" font-size="9" letter-spacing="2" fill="#68736A">02</text>
+    <text x="224" y="318" font-family="Consolas, 'SFMono-Regular', monospace" font-size="9" letter-spacing="2" fill="#68736A">03</text>
+    <text x="332" y="318" font-family="Consolas, 'SFMono-Regular', monospace" font-size="9" letter-spacing="2" fill="#68736A">04</text>
+    <text x="440" y="318" font-family="Consolas, 'SFMono-Regular', monospace" font-size="9" letter-spacing="2" fill="#68736A">05</text>
+    <text x="548" y="318" font-family="Consolas, 'SFMono-Regular', monospace" font-size="9" letter-spacing="2" fill="#68736A">06</text>
+  </g>
+
+  <path d="M60 408H660" stroke="#1C241F" stroke-opacity=".2"/>
+  <text x="60" y="438" font-family="Georgia, 'Times New Roman', serif" font-size="24" font-style="italic" fill="#1C241F">a system that breathes</text>
+  <text x="660" y="438" text-anchor="end" font-family="Consolas, 'SFMono-Regular', monospace" font-size="10" letter-spacing="3" fill="#9A5A35">PALETTE / 04</text>
+  <circle cx="649" cy="44" r="7" fill="#9A5A35"/>
+</svg>

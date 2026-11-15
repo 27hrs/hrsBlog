@@ -1,0 +1,116 @@
+/* ==========================================================================
+   HrsBlog · 雾湖手记
+   A small token layer: paper, ink, pine, copper. Everything else is composition.
+   ========================================================================== */
+
+:root {
+  /* Type */
+  --font-display:
+    Georgia, 'Times New Roman', 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', 'STSong',
+    'SimSun', serif;
+  --font-body:
+    'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', 'Helvetica Neue', Arial,
+    sans-serif;
+  --font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+
+  --fs-hero: clamp(2.7rem, 5.4vw, 4.5rem);
+  --fs-h1: clamp(2.2rem, 4vw, 3.4rem);
+  --fs-h2: clamp(1.9rem, 3vw, 2.7rem);
+  --fs-h3: clamp(1.3rem, 2vw, 1.75rem);
+  --fs-body: 1rem;
+  --fs-small: 0.875rem;
+  --fs-meta: 0.6875rem;
+
+  /* Light paper palette, sampled from the lake photograph */
+  --paper: #f6f2e8;
+  --paper-2: #efe9dc;
+  --paper-3: #e7dfcf;
+  --ink: #1c241f;
+  --ink-soft: #4c574f;
+  --muted: #68736a;
+  --line: rgb(28 36 31 / 16%);
+  --line-soft: rgb(28 36 31 / 9%);
+  --line-strong: rgb(28 36 31 / 28%);
+
+  --copper: #9a5a35;
+  --copper-deep: #7d4527;
+  --copper-bright: #c47c4c;
+  --copper-soft: rgb(154 90 53 / 12%);
+
+  --pine: #1d3a30;
+  --pine-deep: #101d17;
+  --on-dark: #f4f0e6;
+  --on-dark-soft: rgb(244 240 230 / 64%);
+  --on-dark-faint: rgb(244 240 230 / 38%);
+
+  --surface-glass: rgb(246 242 232 / 74%);
+  --surface-paper: rgb(246 242 232 / 92%);
+  --surface-panel: rgb(246 242 232 / 86%);
+  --surface-solid: #f6f2e8;
+
+  --frame-line: rgb(28 36 31 / 16%);
+  --glass-line: rgb(255 255 255 / 36%);
+  --frame-shadow: 0 30px 80px rgb(15 26 20 / 22%), 0 2px 8px rgb(15 26 20 / 8%);
+  --frame-shadow-soft: 0 18px 50px rgb(15 26 20 / 14%), 0 1px 3px rgb(15 26 20 / 6%);
+
+  --selection: rgb(154 90 53 / 24%);
+  --scrollbar: rgb(28 36 31 / 22%);
+  --backdrop-veil: 0.08;
+
+  /* Layout */
+  --header-h: 76px;
+  --wrap: 1240px;
+  --page-pad: clamp(20px, 4vw, 40px);
+  --radius: 2px;
+
+  /* Motion */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-soft: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast: 160ms;
+  --dur: 240ms;
+  --dur-slow: 700ms;
+}
+
+html[data-theme='dark'] {
+  --paper: #141b16;
+  --paper-2: #1a241d;
+  --paper-3: #223027;
+  --ink: #ece7da;
+  --ink-soft: #b9c2b8;
+  --muted: #8e9a91;
+  --line: rgb(236 231 218 / 17%);
+  --line-soft: rgb(236 231 218 / 9%);
+  --line-strong: rgb(236 231 218 / 30%);
+
+  --copper: #d99a6c;
+  --copper-deep: #e7b08a;
+  --copper-bright: #edbb95;
+  --copper-soft: rgb(217 154 108 / 14%);
+
+  --pine: #0e1a14;
+  --pine-deep: #080f0b;
+  --on-dark: #f1ece0;
+  --on-dark-soft: rgb(241 236 224 / 64%);
+  --on-dark-faint: rgb(241 236 224 / 36%);
+
+  --surface-glass: rgb(20 27 22 / 68%);
+  --surface-paper: rgb(20 27 22 / 92%);
+  --surface-panel: rgb(20 27 22 / 86%);
+  --surface-solid: #141b16;
+
+  --frame-line: rgb(236 231 218 / 17%);
+  --glass-line: rgb(236 231 218 / 20%);
+  --frame-shadow: 0 30px 80px rgb(0 0 0 / 48%), 0 2px 8px rgb(0 0 0 / 30%);
+  --frame-shadow-soft: 0 18px 50px rgb(0 0 0 / 38%), 0 1px 3px rgb(0 0 0 / 22%);
+
+  --selection: rgb(217 154 108 / 26%);
+  --scrollbar: rgb(236 231 218 / 24%);
+  --backdrop-veil: 0.32;
+}
+
+@media (max-width: 720px) {
+  :root {
+    --header-h: 66px;
+    --page-pad: 20px;
+  }
+}

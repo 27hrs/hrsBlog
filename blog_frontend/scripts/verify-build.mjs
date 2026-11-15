@@ -1,0 +1,115 @@
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const ROOT = fileURLToPath(new URL('..', import.meta.url))
+const DIST = path.join(ROOT, '.vitepress', 'dist')
+const DATA = path.join(ROOT, '.vitepress', 'data', 'articles.json')
+
+function fail(message) {
+  errors.push(message)
+}
+
+function read(file) {
+  return readFileSync(file, 'utf8')
+}
+
+function htmlEscape(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+}
+
+const errors = []
+const warnings = []
+
+if (!existsSync(DATA)) {
+  console.error('[verify] 找不到 .vitepress/data/articles.json，请先运行 pnpm seed 或 pnpm sync')
+  process.exit(1)
+}
+
+const data = JSON.parse(read(DATA))
+const items = Array.isArray(data.items) ? data.items : []
+
+if (!existsSync(path.join(DIST, 'index.html'))) fail('缺少 dist/index.html')
+if (!existsSync(path.join(DIST, 'articles', 'index.html'))) fail('缺少文章列表 dist/articles/index.html')
+if (!existsSync(path.join(DIST, 'about.html'))) fail('缺少 dist/about.html')
+if (!existsSync(path.join(DIST, '404.html'))) fail('缺少 dist/404.html')
+
+for (const item of items) {
+  const file = path.join(DIST, 'articles', `${item.slug}.html`)
+  if (!existsSync(file)) {
+    fail(`缺少文章静态页 ${item.slug}.html`)
+    continue
+  }
+
+  const html = read(file)
+  if (!html.includes(htmlEscape(item.title))) fail(`文章页缺少标题：${item.slug}`)
+  if (!html.includes('article-prose')) fail(`文章页缺少正文容器：${item.slug}`)
+  if (!html.includes('<h1')) fail(`文章页缺少 H1：${item.slug}`)
+
+  if (item.cover?.startsWith('/')) {
+    const coverFile = path.join(DIST, item.cover.replace(/^\//, ''))
+    if (!existsSync(coverFile)) fail(`封面未进入构建产物：${item.cover}`)
+  }
+}
+
+const sitemapFile = path.join(DIST, 'sitemap.xml')
+if (!existsSync(sitemapFile)) {
+  fail('缺少 sitemap.xml')
+} else {
+  const sitemap = read(sitemapFile)
+  if (!sitemap.includes('/articles/')) fail('sitemap 中缺少文章列表')
+
+  for (const item of items) {
+    if (!sitemap.includes(item.url)) fail(`sitemap 中缺少 ${item.url}`)
+  }
+
+  const locations = [...sitemap.matchAll(/<loc>(.*?)<\/loc>/g)].map((match) => match[1])
+  const expectedLocations = items.length + 3
+  if (locations.length !== expectedLocations) {
+    fail(`sitemap 页面数量异常：${locations.length}，预期 ${expectedLocations}`)
+  }
+}
+
+const articleDir = path.join(DIST, 'articles')
+const expectedArticlePages = new Set(['index.html', ...items.map((item) => `${item.slug}.html`)])
+if (existsSync(articleDir)) {
+  for (const file of readdirSync(articleDir)) {
+    if (file.endsWith('.html') && !expectedArticlePages.has(file)) {
+      fail(`存在陈旧文章页：articles/${file}`)
+    }
+  }
+}
+
+const feedFile = path.join(DIST, 'feed.xml')
+if (!existsSync(feedFile)) {
+  fail('缺少 feed.xml')
+} else {
+  const feed = read(feedFile)
+  const feedItems = (feed.match(/<item>/g) || []).length
+  if (feedItems !== items.length) fail(`feed 文章数量不匹配：${feedItems} != ${items.length}`)
+}
+
+const robotsFile = path.join(DIST, 'robots.txt')
+if (!existsSync(robotsFile)) {
+  fail('缺少 robots.txt')
+} else if (!read(robotsFile).includes('Sitemap:')) {
+  warnings.push('robots.txt 没有 Sitemap 行（BLOG_SITE_URL 可能为空）')
+}
+
+const indexHtml = existsSync(path.join(DIST, 'index.html')) ? read(path.join(DIST, 'index.html')) : ''
+const homeCards = (indexHtml.match(/class="post"/g) || []).length
+if (items.length > 0 && homeCards === 0) fail('首页没有渲染文章卡片')
+
+if (items.length === 0) warnings.push('当前没有已发布文章，生成的是空站点')
+if (warnings.length) warnings.forEach((warning) => console.warn(`[verify] 警告：${warning}`))
+
+if (errors.length) {
+  errors.forEach((error) => console.error(`[verify] 失败：${error}`))
+  process.exit(1)
+}
+
+console.log(`[verify] 通过：${items.length} 篇文章、首页 ${homeCards} 张卡片、sitemap/feed/robots 完整`)

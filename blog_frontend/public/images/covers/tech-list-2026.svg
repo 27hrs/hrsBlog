@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="480" viewBox="0 0 720 480" fill="none">
+  <rect width="720" height="480" fill="#1D3A30"/>
+  <path d="M180 0V480M360 0V480M540 0V480" stroke="#F6F2E8" stroke-opacity=".06"/>
+  <path d="M0 120H720M0 360H720" stroke="#F6F2E8" stroke-opacity=".06"/>
+
+  <text x="60" y="88" font-family="Consolas, 'SFMono-Regular', monospace" font-size="10" letter-spacing="4" fill="#C47C4C">FIELD NOTES / 06</text>
+  <text x="56" y="302" font-family="Georgia, 'Times New Roman', serif" font-size="172" letter-spacing="-12" fill="#F6F2E8">2026</text>
+  <path d="M60 352H660" stroke="#C47C4C" stroke-opacity=".7"/>
+  <text x="60" y="386" font-family="Consolas, 'SFMono-Regular', monospace" font-size="10" letter-spacing="4" fill="#F6F2E8" fill-opacity=".6">SIX THINGS TO LEARN</text>
+  <text x="660" y="386" text-anchor="end" font-family="Georgia, 'Times New Roman', serif" font-size="22" font-style="italic" fill="#C47C4C">slowly</text>
+  <circle cx="660" cy="84" r="7" fill="#C47C4C"/>
+</svg>

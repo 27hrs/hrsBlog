@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="320" viewBox="0 0 320 320" fill="none">
+  <circle cx="160" cy="160" r="160" fill="#EFE7D8"/>
+  <circle cx="160" cy="160" r="132" stroke="#1D3A30" stroke-opacity=".18" stroke-width="1"/>
+  <circle cx="160" cy="160" r="121" stroke="#1D3A30" stroke-opacity=".08" stroke-width="1"/>
+  <text x="158" y="206" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="156" font-weight="500" fill="#1C241F" letter-spacing="-8">H</text>
+  <path d="M105 238H215" stroke="#1C241F" stroke-width="1" opacity=".38"/>
+  <text x="160" y="262" text-anchor="middle" font-family="Consolas, monospace" font-size="12" fill="#68736A" letter-spacing="5">HRSBLOG</text>
+  <circle cx="246" cy="78" r="10" fill="#9A5A35"/>
+  <circle cx="160" cy="160" r="157" stroke="#FFFFFF" stroke-opacity=".35" stroke-width="4"/>
+</svg>

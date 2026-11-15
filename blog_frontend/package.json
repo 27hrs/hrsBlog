@@ -1,36 +1,21 @@
 {
-  "name": "blogfrontend",
-  "version": "0.0.0",
+  "name": "hrsblog-blog-frontend",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "lint": "run-s \"lint:*\"",
-    "lint:oxlint": "oxlint  --fix",
-    "lint:eslint": "eslint  --fix --cache",
-    "format": "prettier --write --experimental-cli src"
-  },
-  "dependencies": {
-    "pinia": "^4.0.3",
-    "vue": "^3.5.42",
-    "vue-router": "^5.3.1"
+    "dev": "node scripts/sync-content.mjs && vitepress dev --port 27080",
+    "dev:offline": "node scripts/seed-content.mjs && vitepress dev --port 27080",
+    "sync": "node scripts/sync-content.mjs",
+    "seed": "node scripts/seed-content.mjs",
+    "clean": "node scripts/clean-dist.mjs",
+    "build": "node scripts/sync-content.mjs && node scripts/clean-dist.mjs && vitepress build && node scripts/verify-build.mjs",
+    "preview": "vitepress preview --port 27080",
+    "verify": "node scripts/verify-build.mjs"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "@vitejs/plugin-vue": "^6.0.8",
-    "eslint": "^10.10.0",
-    "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-oxlint": "~1.82.0",
-    "eslint-plugin-vue": "~10.11.0",
-    "globals": "^17.12.0",
-    "npm-run-all2": "^9.0.3",
-    "oxlint": "~1.82.0",
-    "prettier": "3.9.6",
-    "vite": "^8.2.2",
-    "vite-plugin-vue-devtools": "^8.2.1",
-    "vue-eslint-parser": "^10.4.1"
+    "vitepress": "1.6.4",
+    "vue": "^3.5.42"
   },
   "engines": {
     "node": "^22.18.0 || >=24.12.0"
