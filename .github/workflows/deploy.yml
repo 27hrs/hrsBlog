@@ -99,7 +99,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
   # 内容发布：在 CI 里构建静态站点，用 rsync 增量同步到服务器。
-  # 不产生镜像、不重启容器；服务器侧的 nginx 直接读 ./www。
+  # 不产生镜像、不重启容器；产物直接写进 1Panel 的站点根目录，由它的 nginx 提供。
   publish-content:
     needs: validate
     runs-on: ubuntu-latest
@@ -182,6 +182,8 @@ jobs:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_PORT: ${{ secrets.SSH_PORT }}
           SSH_USER: ${{ secrets.SSH_USER }}
+          # 站点根目录（1Panel 的站点目录）。换路径时改仓库变量 DEPLOY_PATH 即可，不用改代码。
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/opt/1panel/www/sites/27hrsblog/index' }}
         run: |
           set -euo pipefail
           port="${SSH_PORT:-22}"
@@ -191,8 +193,8 @@ jobs:
             -e "ssh -p $port -i ~/.ssh/deploy_key \
                 -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes" \
             blog_frontend/.vitepress/dist/ \
-            "$SSH_USER@$SSH_HOST:/opt/hrsBlog/www/"
-          echo "已同步 $(find blog_frontend/.vitepress/dist -type f | wc -l) 个文件"
+            "$SSH_USER@$SSH_HOST:$DEPLOY_PATH/"
+          echo "已同步 $(find blog_frontend/.vitepress/dist -type f | wc -l) 个文件到 $DEPLOY_PATH"
 
 #  deploy:
 #    needs: build

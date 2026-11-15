@@ -15,12 +15,8 @@ ENV_FILE=".env"
 [ -f "$COMPOSE_FILE" ] || { echo "缺少 $COMPOSE_FILE" >&2; exit 1; }
 [ -r "$ENV_FILE" ]     || { echo "缺少或不可读 $ENV_FILE" >&2; exit 1; }
 
-# 博客静态产物由 CI 同步到 ./www，由宿主机 nginx 直接提供；这里只做存在性提示。
-if [ ! -d www ]; then
-  mkdir -p www
-  echo "提示：./www 还不存在，已创建。" >&2
-  echo "      先在 GitHub Actions 跑一次 publish-content，宿主机 nginx 才有内容可提供。" >&2
-fi
+# 博客静态产物直接由 CI 的 publish-content 同步到 1Panel 站点目录，
+# 与这个脚本无关；这里只负责 backend / admin-frontend 两个容器。
 
 # 命令行参数优先，其次 .env 里的 IMAGE_TAG，最后回退 latest
 export IMAGE_TAG="${1:-${IMAGE_TAG:-latest}}"
