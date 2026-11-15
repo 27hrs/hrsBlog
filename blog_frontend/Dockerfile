@@ -2,16 +2,14 @@
 #
 # 内容通过 /usr/share/nginx/html 的 volume 挂载提供：
 #   ./www:/usr/share/nginx/html:ro
-# GitHub Actions 的 publish-content job 用 rsync 把 dist 直接写进 ./www，
+# GitHub Actions 的 publish-content job 用 rsync 把 dist 写进该目录。
 # 因此公开镜像被任何人拉走也不会带上你的文章正文。
 FROM nginxinc/nginx-unprivileged:alpine
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# 内容未挂载时给出可读的提示，而不是空白页或 403
-RUN printf '%s\n' \
-      '<!doctype html><meta charset="utf-8"><title>HrsBlog</title>' \
-      '<p>内容未挂载：请检查 compose 中的 ./www:/usr/share/nginx/html 挂载。</p>' \
-      > /usr/share/nginx/html/index.html
+# 基础镜像以非 root 用户（uid 101）运行，RUN 无法写 /usr/share/nginx/html，
+# 因此用 COPY 放入占位页——COPY 由构建器以 root 执行，不受镜像 USER 限制。
+COPY docker/placeholder.html /usr/share/nginx/html/index.html
 
 EXPOSE 8080
