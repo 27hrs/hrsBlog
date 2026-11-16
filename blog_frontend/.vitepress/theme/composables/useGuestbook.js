@@ -5,9 +5,6 @@ import { fetchGuestMessages, GUEST_MESSAGE_MAX_PAGE_SIZE } from '../../../api/gu
 /** 站点配置缺省时的每页条数。 */
 const DEFAULT_PAGE_SIZE = 10
 
-/** 运行时请求的接口前缀：与友链申请表单一样走同源相对路径。 */
-const API_BASE = '/api'
-
 /**
  * 留言板数据源：运行时从后端拉取已审核通过的留言。
  *
@@ -53,7 +50,6 @@ export function useGuestbook() {
 
     try {
       const response = await fetchGuestMessages({
-        baseUrl: API_BASE,
         page: targetPage,
         size: pageSize.value,
       })

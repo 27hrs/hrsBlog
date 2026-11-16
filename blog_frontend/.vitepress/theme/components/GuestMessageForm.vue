@@ -3,6 +3,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import AppIcon from './AppIcon.vue'
 import { ApiError } from '../../../api/client.js'
 import {
+  EMAIL_PATTERN,
   GUEST_MESSAGE_LIMITS,
   deriveAvatarUrl,
   submitGuestMessage,
@@ -66,7 +67,7 @@ function fieldError(field) {
 
   if (!value) return field.required ? '这一项需要填写' : ''
   if (value.length > limit) return `不能超过 ${limit} 个字符`
-  if (field.type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+  if (field.type === 'email' && !EMAIL_PATTERN.test(value)) {
     return '请输入有效的邮箱地址'
   }
 
@@ -134,7 +135,7 @@ async function onSubmit() {
   message.value = ''
 
   try {
-    await submitGuestMessage({ ...form }, { baseUrl: '/api', timeout: 10000 })
+    await submitGuestMessage({ ...form }, { timeout: 10000 })
     status.value = 'success'
     message.value = '已提交，等待站长审核'
     resetForm()

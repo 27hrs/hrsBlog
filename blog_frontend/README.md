@@ -1,6 +1,6 @@
 # HrsBlog · 博客前台
 
-VitePress 1.6.4 + 完全自定义主题的静态博客。内容来自 HrsBlog 的访客 API，在**构建期**同步为 Markdown，再生成纯静态页面；运行期不需要数据库或 Node 服务。
+VitePress 1.6.4 + 完全自定义主题的静态博客。内容来自 HrsBlog 的访客 API，在**构建期**同步为 Markdown，再生成纯静态页面；运行期仅「留言」与「申请友链」需要后端接口在线。
 
 ![首页](<../docs/screenshots/home-desktop-light.jpg>)
 
@@ -13,6 +13,7 @@ VitePress 1.6.4 + 完全自定义主题的静态博客。内容来自 HrsBlog �
 | `/articles/{slug}` | 静态文章页：封面、正文、右侧目录、阅读进度、上下篇、代码复制 |
 | `/about` | 关于：资料卡、Markdown 正文、技术栈、联系方式 |
 | `/links/` | 友链：画框卡片网格（头像/名称/简介/外链）+「申请友链」运行期表单 |
+| `/guestbook/` | 留言：留言墙（昵称/头像/时间/内容/站长回复）+ 提交表单，运行期拉取已审核留言 |
 | `/404.html` | 自定义“这一页漂走了” |
 
 截图在 [`docs/screenshots`](../docs/screenshots)：[归档](<../docs/screenshots/archive-desktop.jpg>)、[文章](<../docs/screenshots/article-desktop.jpg>)、[关于](<../docs/screenshots/about-desktop.jpg>)、[移动端](<../docs/screenshots/archive-mobile.jpg>)、[深色文章](<../docs/screenshots/article-dark.jpg>)。
@@ -94,7 +95,25 @@ composables/useFriendLinks.js → views/LinksView.vue → /links/ 静态页
 
 - 友链要等站长在管理后台审核通过后才会进入构建产物（构建由 `ContentChangedEvent` → Webhook → CI 触发）。
 - `contact`（联系方式）只属于站长：访客接口不返回，同步脚本也会把它挡在构建产物之外（`verify-build.mjs` 会校验）。
-- 「申请友链」表单是**整个前台唯一需要后端在线的运行期请求**（`POST /api/visitors/friend-links`，经 nginx 的 `/api/` 反代；本地 dev 由 VitePress `server.proxy` 转发到 `localhost:27000`）。表单 JS 失败不影响 `/links/` 的静态展示。
+- 「申请友链」表单是运行期请求（`POST /api/visitors/friend-links`，经 nginx 的 `/api/` 反代；本地 dev 由 VitePress `server.proxy` 转发到 `localhost:27000`）。表单 JS 失败不影响 `/links/` 的静态展示。
+
+### 留言板（运行期）
+
+与文章/友链的构建期同步不同，留言走**运行期接口**——审核通过后立即可见，不必等 CI 重建：
+
+```text
+GET/POST /api/visitors/guest-messages  （GET 只返回已通过审核的留言；POST 按 IP 限频）
+        │
+        ▼
+api/guest-messages.js      分页读取、字段校验、QQ 头像派生
+        │
+        ▼
+composables/useGuestbook.js → views/GuestbookView.vue → /guestbook/（SSG 壳 + 客户端取数）
+```
+
+- 页面壳是静态的，留言列表与提交表单在浏览器里请求接口（dev 走 Vite proxy，生产走 nginx `/api/` 反代）。
+- 提交成功后需站长在管理后台审核，通过后才出现在留言墙；`POST` 不重试，避免重复留言。
+- 后台开关 `enableGuestbook` 构建期写入站点配置：关闭时导航隐藏「留言」入口、页面只显示“未开放”提示；`guestbookPageSize` 控制每页条数（1–50）。
 
 ## API 封装
 
@@ -106,6 +125,7 @@ composables/useFriendLinks.js → views/LinksView.vue → /links/ 静态页
 | `api/articles.js` | 列表分页、详情、`listAllArticles`、`getArticleDetails`、slug 校验 |
 | `api/settings.js` | 访客站点设置（`GET /visitors/settings`）读取与响应形状校验 |
 | `api/friend-links.js` | 已通过友链读取（`GET /visitors/friend-links`）与申请提交（`POST`，不重试） |
+| `api/guest-messages.js` | 留言分页读取（`GET /visitors/guest-messages`）与提交（`POST`，不重试）、字段校验、QQ 头像派生 |
 | `api/assets.js` | 封面 URL 安全校验、绝对地址解析 |
 | `api/config.js` | `BLOG_API_BASE` / `BLOG_SITE_URL` / 严格模式等配置解析 |
 | `api/index.js` | 统一出口 |
@@ -125,6 +145,7 @@ composables/useFriendLinks.js → views/LinksView.vue → /links/ 静态页
 | 文章详情 | `ArticleView.vue`、`ArticleToc.vue`、`ReadingProgress.vue` |
 | 关于 | `AboutView.vue`、`about.md` |
 | 友链 | `LinksView.vue`、`FriendLinkCard.vue`、`FriendLinkApplyForm.vue`、`links/index.md` |
+| 留言 | `GuestbookView.vue`、`GuestMessageCard.vue`、`GuestMessageForm.vue`、`useGuestbook.js`、`guestbook/index.md` |
 | 卡片/画框/壳层 | `components/`、`Layout.vue` |
 | 设计 token / 正文排版 | `styles/tokens.css`、`styles/prose.css` |
 | 演示内容 | `scripts/fixtures/articles.mjs` |

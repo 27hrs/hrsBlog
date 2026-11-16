@@ -49,7 +49,7 @@ export const siteConfig = {
     enabled: false,
     pageSize: 10,
     title: '留言',
-    lead: '路过就留一句话。我会一条条看完，也会尽量回复。',
+    lead: '路过就留一句话。',
   },
 
   friendLinks: [

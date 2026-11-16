@@ -19,6 +19,7 @@ export {
   submitFriendLink,
 } from './friend-links.js'
 export {
+  EMAIL_PATTERN,
   GUEST_MESSAGE_LIMITS,
   GUEST_MESSAGE_MAX_PAGE_SIZE,
   buildGuestMessagePayload,

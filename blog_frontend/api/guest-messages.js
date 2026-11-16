@@ -22,8 +22,8 @@ const REQUIRED_FIELDS = ['nickname', 'content']
  */
 const QQ_EMAIL_PATTERN = /^(\d+)@qq\.com$/i
 
-/** 邮箱格式校验（与后端 jakarta @Email 的宽松口径接近）。 */
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+/** 邮箱格式校验（与后端 jakarta @Email 的宽松口径接近），表单逐字段校验也复用它。 */
+export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function isRecord(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
@@ -136,9 +136,10 @@ export function buildGuestMessagePayload(payload) {
  * GET /visitors/guest-messages
  *
  * 返回已通过审核的留言分页列表（page 从 0 开始计数）。
+ * `baseUrl` 缺省为 `/api`（浏览器同源相对路径）；构建期脚本可传完整地址覆盖。
  */
 export async function fetchGuestMessages({
-  baseUrl,
+  baseUrl = '/api',
   page = 0,
   size,
   timeout,
@@ -164,8 +165,10 @@ export async function fetchGuestMessages({
  * 访客提交留言。失败时抛出 ApiError：
  * - `code === 40000`：`details` 是 `{ 字段名: 中文错误 }`
  * - `code === 42901`：提交过于频繁
+ *
+ * `baseUrl` 缺省为 `/api`，与 {@link fetchGuestMessages} 一致。
  */
-export async function submitGuestMessage(payload, { baseUrl, timeout, signal, fetchImpl } = {}) {
+export async function submitGuestMessage(payload, { baseUrl = '/api', timeout, signal, fetchImpl } = {}) {
   const body = buildGuestMessagePayload(payload)
 
   return request('/visitors/guest-messages', {

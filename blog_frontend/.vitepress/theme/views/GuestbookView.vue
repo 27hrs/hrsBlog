@@ -54,7 +54,7 @@ onMounted(() => {
               <span>路过留声</span>
             </p>
             <h1 class="guestbook__title">留言</h1>
-            <p class="guestbook__lead">路过就留一句话。我会一条条看完，也会尽量回复。</p>
+            <p class="guestbook__lead">路过就留一句话。</p>
           </div>
 
           <div class="guestbook__head-meta">
@@ -106,7 +106,7 @@ onMounted(() => {
       >
         <div class="guestbook__empty">
           <p class="guestbook__empty-title">正在读取留言…</p>
-          <p class="guestbook__empty-text">稍等片刻，墙上就会热闹起来。</p>
+          <p class="guestbook__empty-text">稍等片刻。</p>
         </div>
       </FramePanel>
 
@@ -189,7 +189,7 @@ onMounted(() => {
         <div class="guestbook__write-head">
           <h2 class="guestbook__write-title">留下留言</h2>
           <p class="guestbook__write-lead">
-            填好下面的表单，提交后我会人工审核。邮箱只有我自己看得到，不会出现在页面上。
+            填写你的留言。
           </p>
         </div>
 

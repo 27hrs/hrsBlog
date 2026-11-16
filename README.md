@@ -163,7 +163,7 @@ ContentChangedEvent ──► Webhook ──► CI 重建前台
 sync-friend-links.mjs（构建期）──► .vitepress/data/friend-links.json ──► /links/ 静态页
 ```
 
-- **提交表单是前台唯一需要后端在线的接口**；友链内容本身仍是构建期静态同步的，
+- **提交表单是运行期请求**（「留言」页同理，见下节）；友链内容本身仍是构建期静态同步的，
   表单 JS 失败不影响 `/links/` 页面的静态展示。
 - **访客接口绝不返回 `contact`**：联系方式只出现在管理端的
   `GET /api/admin/friend-links`，防止被爬虫批量采集。
@@ -185,6 +185,42 @@ sync-friend-links.mjs（构建期）──► .vitepress/data/friend-links.json 
 
 > 注：站点设置里的 `friendLinks`（JSON 列表）是另一条老链路，用于文章列表页侧边栏，
 > 与这里的「友链申请 + 审核」相互独立。
+
+## 留言系统
+
+访客在博客前台的「留言」页提交留言，站长在管理后台审核（可回复、删除），通过后留言立即出现在前台留言墙。
+
+```text
+访客 /guestbook/ 填表
+      │  POST /api/visitors/guest-messages（匿名，按 IP 限频）
+      ▼
+GuestMessageService ──► guest_message 表（status = PENDING）
+      │
+      │  管理后台「内容 → 留言管理」审核通过（可回复 / 删除）
+      ▼
+GET /api/visitors/guest-messages ──► /guestbook/ 运行期拉取（无需重建站点）
+```
+
+- **与友链不同，留言走运行期接口**：审核通过后立即可见，不必等 CI 重建；页面壳仍是静态的，
+  列表与提交表单在浏览器里请求接口（`/api/` 经 nginx 反代，本地 dev 由 Vite proxy 转发）。
+- **邮箱不出现在访客可见的响应里**：仅用于派生 QQ 头像与管理端联系；访客接口只返回
+  `nickname / avatarUrl / content / createdAt / replies`。
+- **基础防滥用**：必填项与长度校验（昵称 ≤ 64、内容 ≤ 500）、按 IP 的每日提交限额
+  （`hrsblog.guest-message.daily-submit-limit`，默认 5，可设为 0 关闭），不引入验证码。
+- **开关联动**：站点设置 `enableGuestbook` 控制前台导航入口与页面开放；`guestbookPageSize`（1–50）控制每页条数。
+- **提交提示**：新留言返回 201「留言已提交，等待站长审核」，审核通过前不会上墙。
+
+| 接口 | 说明 |
+| --- | --- |
+| `POST /api/visitors/guest-messages` | 访客提交留言（匿名，按 IP 限频，超限返回 429） |
+| `GET /api/visitors/guest-messages?page=&size=` | 已通过审核的留言分页列表（响应不含邮箱/IP/UA） |
+| `GET /api/admin/guest-messages?status=&page=&size=` | 管理端分页列表（支持状态筛选） |
+| `GET /api/admin/guest-messages/{id}` | 管理端详情（含邮箱、来源 IP 与 UA） |
+| `POST /api/admin/guest-messages/{id}/review` | 审核通过 / 拒绝 |
+| `PUT /api/admin/guest-messages/{id}/reply` | 站长回复（一条留言一条回复，再次提交即覆盖） |
+| `DELETE /api/admin/guest-messages/{id}` | 删除留言（先删回复再删留言） |
+
+数据库迁移：`backend/src/main/resources/db/migration/V1__create_blog_schema.sql`（`guest_message` / `message_reply` 表）。
 
 ## 部署
 
