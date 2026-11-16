@@ -4,7 +4,8 @@ import java.time.Instant;
 import java.util.List;
 
 /**
- * 内容变更事件：站点配置实际发生变化，或文章被发布 / 已发布文章内容被更新。
+ * 内容变更事件：站点配置实际发生变化，或文章被发布 / 已发布文章内容被更新，
+ * 或友链列表发生变化（审核通过 / 已通过的友链被编辑或删除）。
  *
  * <p>事件在业务事务内发布，由 {@code DeployNotifyService} 以
  * {@code @TransactionalEventListener(phase = AFTER_COMMIT)} 消费 —— 只有事务真正提交
@@ -26,6 +27,9 @@ public record ContentChangedEvent(List<String> reasons, Instant occurredAt) {
 
     /** 已发布文章的内容被更新。 */
     public static final String REASON_ARTICLE_UPDATED = "article_updated";
+
+    /** 友链列表发生变化：审核通过 / 已通过的友链被编辑或删除。 */
+    public static final String REASON_FRIEND_LINK_UPDATED = "friend_link_updated";
 
     public ContentChangedEvent {
         reasons = reasons == null ? List.of() : List.copyOf(reasons);

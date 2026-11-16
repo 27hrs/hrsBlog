@@ -78,10 +78,10 @@ pnpm dev        # http://localhost:27080
 把该 Webhook 指向 GitHub Dispatches API，GitHub Actions 就会自动重建并发布 VitePress 前台。
 
 ```text
-AdminArticleController / AdminSettingController
+AdminArticleController / AdminSettingController / AdminFriendLinkController
         │  事务内埋点（只在「真的变了」时）
         ▼
-SiteSettingService / ArticleService ──publishEvent──► ContentChangedEvent
+SiteSettingService / ArticleService / FriendLinkService ──publishEvent──► ContentChangedEvent
         │  AFTER_COMMIT
         ▼
 DeployNotifyService（防抖合并：窗口内多次变更只发一次）
@@ -95,8 +95,8 @@ WebhookClient（RestClient）──POST──► GitHub Dispatches API / 通用 
 GET /api/admin/logs（管理端「系统日志」页）
 ```
 
-- **触发条件**：站点配置实际变化；文章直接发布 / 草稿首发 / 已发布文章内容更新。
-  草稿编辑、保存相同配置都不触发。
+- **触发条件**：站点配置实际变化；文章直接发布 / 草稿首发 / 已发布文章内容更新；
+  友链审核通过 / 已通过的友链被编辑或删除。草稿编辑、保存相同配置都不触发。
 - **防抖**：默认 10 秒窗口，窗口内的多次变更合并成一次投递，只带变更原因、不带内容。
 - **重试**：默认失败重试 2 次（退避 5s / 15s），每次尝试都写一条日志；
   最终失败只记 ERROR，**不影响文章 / 配置保存主流程**。
@@ -143,6 +143,47 @@ GET /api/admin/logs（管理端「系统日志」页）
 1. Webhook 地址改成不可达地址（如 `http://127.0.0.1:9/unreachable`），保存。
 2. 发布一篇文章 → 系统日志出现多条 `FAILED`，`attempt` 依次为 1、2、3（间隔约 5s、15s）。
 3. 文章接口仍然返回 **201**、设置接口仍然返回 **200** —— 通知失败不回滚主流程。
+
+## 友链系统
+
+访客在博客前台的「友链」页提交申请，站长在管理后台审核，通过后友链出现在前台列表里。
+
+```text
+访客 /links/ 填表
+      │  POST /api/visitors/friend-links（匿名，按 IP 限频）
+      ▼
+FriendLinkService ──► friend_link 表（status = PENDING）
+      │
+      │  管理后台「内容 → 友链管理」审核通过
+      ▼
+ContentChangedEvent ──► Webhook ──► CI 重建前台
+      │
+      ▼
+sync-friend-links.mjs（构建期）──► .vitepress/data/friend-links.json ──► /links/ 静态页
+```
+
+- **提交表单是前台唯一需要后端在线的接口**；友链内容本身仍是构建期静态同步的，
+  表单 JS 失败不影响 `/links/` 页面的静态展示。
+- **访客接口绝不返回 `contact`**：联系方式只出现在管理端的
+  `GET /api/admin/friend-links`，防止被爬虫批量采集。
+- **基础防滥用**：必填项与 `http(s)` URL 校验、长度上限、按 IP 的每日提交限额
+  （`hrsblog.friend-link.daily-submit-limit`，默认 5，可设为 0 关闭），不引入验证码。
+- **自动重建**：审核通过 / 已通过的友链被编辑或删除时，触发与文章发布同一套
+  `ContentChangedEvent` → Webhook → CI 链路。
+
+| 接口 | 说明 |
+| --- | --- |
+| `POST /api/visitors/friend-links` | 访客提交申请（匿名，按 IP 限频，超限返回 429） |
+| `GET /api/visitors/friend-links` | 已通过的友链列表（响应不含 `contact`） |
+| `GET /api/admin/friend-links?status=&page=&size=` | 管理端分页列表（支持状态筛选） |
+| `POST /api/admin/friend-links/{id}/review` | 审核通过 / 拒绝 |
+| `PUT /api/admin/friend-links/{id}` | 编辑友链 |
+| `DELETE /api/admin/friend-links/{id}` | 删除友链 |
+
+数据库迁移：`backend/src/main/resources/db/migration/V4__create_friend_link.sql`。
+
+> 注：站点设置里的 `friendLinks`（JSON 列表）是另一条老链路，用于文章列表页侧边栏，
+> 与这里的「友链申请 + 审核」相互独立。
 
 ## 部署
 

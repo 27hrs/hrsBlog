@@ -142,8 +142,14 @@ export default defineConfig({
     server: {
       // Covers are downloaded into public/assets at sync time, but these
       // proxies keep a dev server useful when a cover is not cached yet.
+      //
+      // 只代理后端真正的两个命名空间（/api/visitors/**、/api/admin/**），
+      // 而不是整段 `/api`：仓库里的 `api/` 同时是源码目录（api/client.js、
+      // api/friend-links.js …），友链申请表单在浏览器端 import 它们时，
+      // Vite 会以 `/api/xxx.js` 的 URL 取模块；若整段代理，这些模块请求会被
+      // 转发到后端并拿到 401，页面上的提交也就跟着坏了。
       proxy: {
-        '/api': {
+        '^/api/(?:visitors|admin)/': {
           target: 'http://localhost:27000',
           changeOrigin: true,
         },

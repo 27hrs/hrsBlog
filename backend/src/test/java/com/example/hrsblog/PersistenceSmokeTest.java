@@ -2,10 +2,12 @@ package com.example.hrsblog;
 
 import com.example.hrsblog.domain.AdminUser;
 import com.example.hrsblog.domain.Article;
+import com.example.hrsblog.domain.FriendLink;
 import com.example.hrsblog.domain.StaticAsset;
 import com.example.hrsblog.domain.Tag;
 import com.example.hrsblog.repository.AdminUserRepository;
 import com.example.hrsblog.repository.ArticleRepository;
+import com.example.hrsblog.repository.FriendLinkRepository;
 import com.example.hrsblog.repository.StaticAssetRepository;
 import com.example.hrsblog.repository.TagRepository;
 import jakarta.persistence.EntityManager;
@@ -14,6 +16,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -37,6 +41,9 @@ class PersistenceSmokeTest {
 
     @Autowired
     private StaticAssetRepository staticAssetRepository;
+
+    @Autowired
+    private FriendLinkRepository friendLinkRepository;
 
     @Autowired
     private EntityManager entityManager;
@@ -80,5 +87,21 @@ class PersistenceSmokeTest {
         assertThat(asset.getCreatedAt()).isNotNull();
         assertThat(asset.getStatus()).isEqualTo(StaticAsset.AssetStatus.ACTIVE);
         assertThat(asset.getKind()).isEqualTo(StaticAsset.AssetKind.IMAGE);
+
+        FriendLink friendLink = new FriendLink();
+        friendLink.setSiteName("Smoke Site");
+        friendLink.setSiteUrl("https://smoke.test");
+        friendLink.setLinkPageUrl("https://smoke.test/links");
+        friendLink.setDescription("Smoke friend link");
+        friendLink.setContact("smoke@smoke.test");
+        friendLink.setStatus(FriendLink.FriendLinkStatus.PENDING);
+        friendLink.setSortOrder(0);
+        friendLink.setSubmittedIp("203.0.113.10");
+        friendLink.setSubmittedAt(LocalDateTime.now());
+        friendLinkRepository.saveAndFlush(friendLink);
+        entityManager.refresh(friendLink);
+        assertThat(friendLink.getCreatedAt()).isNotNull();
+        assertThat(friendLink.getUpdatedAt()).isNotNull();
+        assertThat(friendLink.getStatus()).isEqualTo(FriendLink.FriendLinkStatus.PENDING);
     }
 }

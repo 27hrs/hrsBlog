@@ -42,6 +42,12 @@ const routes = [
         meta: { title: '编辑文章', section: '内容', requiresAuth: true },
       },
       {
+        path: 'friend-links',
+        name: 'friend-links',
+        component: () => import('@/views/FriendLinksView.vue'),
+        meta: { title: '友链管理', section: '内容', requiresAuth: true },
+      },
+      {
         path: 'settings',
         name: 'settings',
         component: () => import('@/views/SettingsView.vue'),

@@ -22,6 +22,9 @@ const icons = {
   close: {
     paths: ['M6 6l12 12', 'M18 6 6 18'],
   },
+  check: {
+    paths: ['M4.5 12.5 9.5 17.5 19.5 6.5'],
+  },
   sun: {
     paths: [
       'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z',

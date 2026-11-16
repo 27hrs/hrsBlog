@@ -34,6 +34,7 @@ export const siteConfig = {
   nav: [
     { label: '首页', link: '/' },
     { label: '文章', link: '/articles/' },
+    { label: '友链', link: '/links/' },
     { label: '关于', link: '/about' },
   ],
 

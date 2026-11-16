@@ -3,9 +3,11 @@ package com.example.hrsblog.support;
 import com.example.hrsblog.config.StorageProperties;
 import com.example.hrsblog.domain.AdminUser;
 import com.example.hrsblog.domain.Article;
+import com.example.hrsblog.domain.FriendLink;
 import com.example.hrsblog.domain.Tag;
 import com.example.hrsblog.repository.AdminUserRepository;
 import com.example.hrsblog.repository.ArticleRepository;
+import com.example.hrsblog.repository.FriendLinkRepository;
 import com.example.hrsblog.repository.StaticAssetRepository;
 import com.example.hrsblog.repository.TagRepository;
 import com.example.hrsblog.security.JwtTokenProvider;
@@ -48,6 +50,9 @@ public abstract class AbstractIntegrationTest {
 
     @Autowired
     protected TagRepository tagRepository;
+
+    @Autowired
+    protected FriendLinkRepository friendLinkRepository;
 
     @Autowired
     protected StaticAssetRepository staticAssetRepository;
@@ -96,5 +101,22 @@ public abstract class AbstractIntegrationTest {
 
     protected Path storageRoot() {
         return Path.of(storageProperties.localDir()).toAbsolutePath().normalize();
+    }
+
+    /**
+     * 造一条友链记录：默认带上联系方式，便于验证「管理端可见、访客端不可见」。
+     */
+    protected FriendLink createFriendLink(String siteName, String siteUrl, FriendLink.FriendLinkStatus status) {
+        FriendLink friendLink = new FriendLink();
+        friendLink.setSiteName(siteName);
+        friendLink.setSiteUrl(siteUrl);
+        friendLink.setLinkPageUrl(siteUrl + "/links");
+        friendLink.setDescription("Description " + siteName);
+        friendLink.setContact("contact-" + siteName + "@example.test");
+        friendLink.setStatus(status);
+        friendLink.setSortOrder(0);
+        friendLink.setSubmittedIp("203.0.113.10");
+        friendLink.setSubmittedAt(LocalDateTime.now());
+        return friendLinkRepository.saveAndFlush(friendLink);
     }
 }

@@ -22,6 +22,7 @@ const groups = [
     items: [
       { name: 'article-list', label: '文章管理', icon: 'article' },
       { name: 'article-create', label: '文章投放', icon: 'pen-line' },
+      { name: 'friend-links', label: '友链管理', icon: 'link' },
     ],
   },
   {

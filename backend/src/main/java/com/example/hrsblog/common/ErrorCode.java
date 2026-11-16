@@ -29,6 +29,7 @@ public enum ErrorCode {
     NOT_FOUND(40400, HttpStatus.NOT_FOUND, "请求的资源不存在"),
     ARTICLE_NOT_FOUND(40401, HttpStatus.NOT_FOUND, "文章不存在"),
     ASSET_NOT_FOUND(40402, HttpStatus.NOT_FOUND, "静态资源不存在"),
+    FRIEND_LINK_NOT_FOUND(40403, HttpStatus.NOT_FOUND, "友链不存在"),
 
     METHOD_NOT_ALLOWED(40500, HttpStatus.METHOD_NOT_ALLOWED, "请求方法不被支持"),
 
@@ -37,10 +38,17 @@ public enum ErrorCode {
     DATA_CONFLICT(40901, HttpStatus.CONFLICT, "数据冲突，请检查唯一字段"),
     /** 用户名唯一约束冲突（修改用户名时命中其他账号）。 */
     USERNAME_CONFLICT(40902, HttpStatus.CONFLICT, "用户名已存在"),
+    /** 同一站点已有待审核的友链申请。 */
+    FRIEND_LINK_DUPLICATE(40903, HttpStatus.CONFLICT, "该站点已有待审核的友链申请"),
 
     ASSET_TOO_LARGE(41300, HttpStatus.CONTENT_TOO_LARGE, "文件大小超过限制"),
+    /** 匿名写接口的请求体超过上限（防止超大 body 打满内存）。 */
+    REQUEST_BODY_TOO_LARGE(41301, HttpStatus.CONTENT_TOO_LARGE, "请求体过大"),
     ASSET_TYPE_NOT_ALLOWED(41500, HttpStatus.UNSUPPORTED_MEDIA_TYPE, "不支持的文件类型"),
     MEDIA_TYPE_NOT_SUPPORTED(41501, HttpStatus.UNSUPPORTED_MEDIA_TYPE, "请求的 Content-Type 不被支持"),
+
+    /** 友链申请超出当日限额（按 IP 统计）。 */
+    FRIEND_LINK_RATE_LIMITED(42900, HttpStatus.TOO_MANY_REQUESTS, "提交过于频繁，请稍后再试"),
 
     INTERNAL_ERROR(50000, HttpStatus.INTERNAL_SERVER_ERROR, "服务器内部错误"),
     STORAGE_ERROR(50001, HttpStatus.INTERNAL_SERVER_ERROR, "文件存储失败");

@@ -12,6 +12,7 @@ VitePress 1.6.4 + 完全自定义主题的静态博客。内容来自 HrsBlog �
 | `/articles/` | 文章归档：分类/标签筛选、搜索侧栏、热门、友链 |
 | `/articles/{slug}` | 静态文章页：封面、正文、右侧目录、阅读进度、上下篇、代码复制 |
 | `/about` | 关于：资料卡、Markdown 正文、技术栈、联系方式 |
+| `/links/` | 友链：画框卡片网格（头像/名称/简介/外链）+「申请友链」运行期表单 |
 | `/404.html` | 自定义“这一页漂走了” |
 
 截图在 [`docs/screenshots`](../docs/screenshots)：[归档](<../docs/screenshots/archive-desktop.jpg>)、[文章](<../docs/screenshots/article-desktop.jpg>)、[关于](<../docs/screenshots/about-desktop.jpg>)、[移动端](<../docs/screenshots/archive-mobile.jpg>)、[深色文章](<../docs/screenshots/article-dark.jpg>)。
@@ -24,8 +25,9 @@ pnpm dev:offline  # 使用 fixtures，不请求 API
 pnpm seed         # 只用 fixtures 生成 6 篇演示文章
 pnpm sync          # 从 API 同步文章、封面、feed、robots（需要 BLOG_API_BASE）
 pnpm sync:settings # 只同步后台站点设置
+pnpm sync:friend-links # 只同步已通过的友链到 .vitepress/data/friend-links.json
 pnpm clean        # 清空 .vitepress/dist
-pnpm build        # sync settings + sync（配置了 API 时）+ clean + build + verify
+pnpm build        # sync settings + sync + sync friend-links（配置了 API 时）+ clean + build + verify
 pnpm preview      # 预览构建产物，端口 27080
 pnpm verify       # 校验静态产物、sitemap、feed、陈旧页面
 ```
@@ -75,6 +77,25 @@ vitepress build → .vitepress/dist（静态 HTML）
 - 构建前会执行 `scripts/clean-dist.mjs`，防止上一轮的旧静态页混入 `sitemap`。
 - `markdown.headers` 开启，文章 TOC 直接使用 VitePress 的 `page.headers`（含 H2/H3 嵌套）。
 
+### 友链管线
+
+```text
+GET /api/visitors/friend-links        （只返回已通过审核、且不含 contact 的友链）
+        │
+        ▼
+scripts/sync-friend-links.mjs         与 sync-settings.mjs 同构：超时重试、原子写、失败回退缓存
+        │
+        ▼
+.vitepress/data/friend-links.json     （gitignore）
+        │
+        ▼
+composables/useFriendLinks.js → views/LinksView.vue → /links/ 静态页
+```
+
+- 友链要等站长在管理后台审核通过后才会进入构建产物（构建由 `ContentChangedEvent` → Webhook → CI 触发）。
+- `contact`（联系方式）只属于站长：访客接口不返回，同步脚本也会把它挡在构建产物之外（`verify-build.mjs` 会校验）。
+- 「申请友链」表单是**整个前台唯一需要后端在线的运行期请求**（`POST /api/visitors/friend-links`，经 nginx 的 `/api/` 反代；本地 dev 由 VitePress `server.proxy` 转发到 `localhost:27000`）。表单 JS 失败不影响 `/links/` 的静态展示。
+
 ## API 封装
 
 `api/` 是浏览器与 Node 都能用的 fetch 层，客户端不依赖第三方库：
@@ -84,6 +105,7 @@ vitepress build → .vitepress/dist（静态 HTML）
 | `api/client.js` | `{code,message,data}` 解包、`ApiError`、超时、429/5xx 重试、GET/JSON |
 | `api/articles.js` | 列表分页、详情、`listAllArticles`、`getArticleDetails`、slug 校验 |
 | `api/settings.js` | 访客站点设置（`GET /visitors/settings`）读取与响应形状校验 |
+| `api/friend-links.js` | 已通过友链读取（`GET /visitors/friend-links`）与申请提交（`POST`，不重试） |
 | `api/assets.js` | 封面 URL 安全校验、绝对地址解析 |
 | `api/config.js` | `BLOG_API_BASE` / `BLOG_SITE_URL` / 严格模式等配置解析 |
 | `api/index.js` | 统一出口 |
@@ -94,7 +116,7 @@ vitepress build → .vitepress/dist（静态 HTML）
 
 | 内容 | 文件 |
 |---|---|
-| 站点身份、社交、友链、精选（本地默认值） | `.vitepress/site.config.mjs` |
+| 站点身份、社交、友链侧栏、精选（本地默认值） | `.vitepress/site.config.mjs` |
 | 设置合并（接口值覆盖默认值） | `scripts/sync-settings.mjs`、`scripts/lib/site-settings.mjs` |
 | 导航、markdown、sitemap、head | `.vitepress/config.mjs` |
 | SEO（canonical/OG/JSON-LD） | `.vitepress/seo.mjs` |
@@ -102,11 +124,12 @@ vitepress build → .vitepress/dist（静态 HTML）
 | 文章归档 | `ArticleListView.vue`、`ArchiveFilters.vue`、`ArchiveSidebar.vue` |
 | 文章详情 | `ArticleView.vue`、`ArticleToc.vue`、`ReadingProgress.vue` |
 | 关于 | `AboutView.vue`、`about.md` |
+| 友链 | `LinksView.vue`、`FriendLinkCard.vue`、`FriendLinkApplyForm.vue`、`links/index.md` |
 | 卡片/画框/壳层 | `components/`、`Layout.vue` |
 | 设计 token / 正文排版 | `styles/tokens.css`、`styles/prose.css` |
 | 演示内容 | `scripts/fixtures/articles.mjs` |
 | API | `api/` |
-| 同步/清理/校验 | `scripts/sync-content.mjs`、`clean-dist.mjs`、`verify-build.mjs` |
+| 同步/清理/校验 | `scripts/sync-content.mjs`、`sync-friend-links.mjs`、`clean-dist.mjs`、`verify-build.mjs` |
 
 ## 设计
 

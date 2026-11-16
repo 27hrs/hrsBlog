@@ -57,6 +57,13 @@ hrsblog:
     backoff-seconds: [5, 15, 30, 60]
     connect-timeout-seconds: 5
     read-timeout-seconds: 10
+  friend-link:
+    # 同一个 IP 每天最多可提交的友链申请次数；0 表示不限制。
+    daily-submit-limit: 5
+    # 是否信任反向代理写入的 X-Forwarded-For / X-Real-IP 头。
+    # 后端端口未对公网暴露时保持 true（否则所有访客共用 nginx 地址，限频形同虚设）；
+    # 若后端端口可能被直连，请设为 false，以免伪造转发头绕过限频。
+    trust-forwarded-headers: true
   admin:
     # 可选：首次启动时按环境变量创建管理员（表内已存在管理员时不做任何事）
     bootstrap-username: user

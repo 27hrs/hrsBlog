@@ -36,6 +36,7 @@ const items = Array.isArray(data.items) ? data.items : []
 if (!existsSync(path.join(DIST, 'index.html'))) fail('缺少 dist/index.html')
 if (!existsSync(path.join(DIST, 'articles', 'index.html'))) fail('缺少文章列表 dist/articles/index.html')
 if (!existsSync(path.join(DIST, 'about.html'))) fail('缺少 dist/about.html')
+if (!existsSync(path.join(DIST, 'links', 'index.html'))) fail('缺少友链页 dist/links/index.html')
 if (!existsSync(path.join(DIST, '404.html'))) fail('缺少 dist/404.html')
 
 for (const item of items) {
@@ -62,13 +63,15 @@ if (!existsSync(sitemapFile)) {
 } else {
   const sitemap = read(sitemapFile)
   if (!sitemap.includes('/articles/')) fail('sitemap 中缺少文章列表')
+  if (!sitemap.includes('/links/')) fail('sitemap 中缺少友链页')
 
   for (const item of items) {
     if (!sitemap.includes(item.url)) fail(`sitemap 中缺少 ${item.url}`)
   }
 
   const locations = [...sitemap.matchAll(/<loc>(.*?)<\/loc>/g)].map((match) => match[1])
-  const expectedLocations = items.length + 3
+  // 首页 + 文章列表 + 关于 + 友链
+  const expectedLocations = items.length + 4
   if (locations.length !== expectedLocations) {
     fail(`sitemap 页面数量异常：${locations.length}，预期 ${expectedLocations}`)
   }
@@ -103,6 +106,19 @@ if (!existsSync(robotsFile)) {
 const indexHtml = existsSync(path.join(DIST, 'index.html')) ? read(path.join(DIST, 'index.html')) : ''
 const homeCards = (indexHtml.match(/class="post"/g) || []).length
 if (items.length > 0 && homeCards === 0) fail('首页没有渲染文章卡片')
+
+const linksFile = path.join(DIST, 'links', 'index.html')
+if (existsSync(linksFile)) {
+  const linksHtml = read(linksFile)
+  if (!linksHtml.includes(htmlEscape('友情链接'))) fail('友链页缺少标题：友情链接')
+  if (!linksHtml.includes('申请友链')) fail('友链页缺少申请表单')
+}
+
+// 联系方式只属于站长，构建产物里不允许出现 contact 字段。
+const friendLinksFile = path.join(ROOT, '.vitepress', 'data', 'friend-links.json')
+if (existsSync(friendLinksFile) && read(friendLinksFile).includes('"contact"')) {
+  fail('友链数据文件不应包含 contact 字段')
+}
 
 if (items.length === 0) warnings.push('当前没有已发布文章，生成的是空站点')
 if (warnings.length) warnings.forEach((warning) => console.warn(`[verify] 警告：${warning}`))
