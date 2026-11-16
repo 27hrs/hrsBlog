@@ -24,7 +24,7 @@ export default defineConfig(({ mode }) => {
   const backendTarget = env.VITE_DEV_BACKEND_TARGET || 'http://localhost:27000'
 
   return {
-    base: '/admin/',
+    // base: '/admin/',
     plugins: [vue()],
     server: {
       port: 27081,
