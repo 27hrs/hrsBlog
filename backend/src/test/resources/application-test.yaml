@@ -29,6 +29,14 @@ hrsblog:
     allowed-types: jpg,jpeg,png,webp,gif
   cors:
     allowed-origins: http://localhost:27080,http://localhost:27081
+  deploy:
+    # 测试期把窗口与退避压到最短，避免用例等待真实的时间流逝
+    default-event-type: blog-content-updated
+    default-debounce-seconds: 1
+    default-max-retries: 1
+    backoff-seconds: [0, 0]
+    connect-timeout-seconds: 2
+    read-timeout-seconds: 3
   admin:
     bootstrap-username: ""
     bootstrap-password: ""

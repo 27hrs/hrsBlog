@@ -47,6 +47,12 @@ const routes = [
         component: () => import('@/views/SettingsView.vue'),
         meta: { title: '站点设置', section: '站点', requiresAuth: true },
       },
+      {
+        path: 'logs',
+        name: 'logs',
+        component: () => import('@/views/LogsView.vue'),
+        meta: { title: '系统日志', section: '系统', requiresAuth: true },
+      },
     ],
   },
   {

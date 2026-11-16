@@ -45,6 +45,7 @@ pnpm format    # Prettier
 | `/articles` | 文章管理 | 搜索、状态/分类/标签筛选、批量删除、分页 |
 | `/articles/new` | 文章投放 | md-editor-v3 编辑区 + 右侧设置面板 |
 | `/settings` | 站点设置 | 账号安全（用户名 / 密码）+ 注册表驱动的左侧分类导航 + SchemaForm |
+| `/logs` | 系统日志 | 通用系统日志列表：type / status 筛选 + 服务端分页 |
 
 所有业务路由懒加载。路由守卫校验本地会话（token + 过期时间），任意管理 API 返回 401 时由统一客户端清理会话并回到登录页。
 
@@ -101,6 +102,7 @@ router + guard
 - `POST /api/admin/articles`、`GET /api/admin/articles`、`GET /api/admin/articles/{id}`、`PUT /api/admin/articles/{id}`、`DELETE /api/admin/articles/{id}`（列表 / 详情 / 更新 / 软删除均已提供）
 - `POST /api/admin/articles/batch-delete`（批量软删除，逐条返回成功 / 失败明细）
 - `GET /api/admin/assets`、`POST /api/admin/assets`、`DELETE /api/admin/assets/{id}`
+- `GET /api/admin/logs`（通用系统日志分页查询，支持 `type` / `status` 筛选）
 
 因此前端做了明确、可移除的降级：
 
@@ -146,6 +148,36 @@ router + guard
 | 部分失败 | `toast.warning('已删除 N 篇，M 篇失败：#id（原因）')`，失败项带 id 与原因 |
 | 全部失败 | `toast.error(...)` 并列出失败明细 |
 | 仅勾选本地草稿 | 不调用后端，仍走本机记录移除（与原有行为一致） |
+
+## 部署通知与系统日志
+
+后台「站点设置 → 集成」分组里的 `integrations` 段落承载「内容变更 → Webhook → CI 重建」链路的配置，
+保存后由后端在事务提交后异步投递；投递的每一次尝试都会写进通用日志表，可在「系统日志」页查看。
+
+### 集成分组新增字段
+
+| Key | 标签 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `webhookUrl` | 发布通知 Webhook | input | 空 | GitHub Dispatches 地址或任意通用 Webhook |
+| `webhookEnabled` | 启用通知 | switch | `false` | 内容变更后触发一次通知 |
+| `webhookSecret` | 鉴权密钥 | input | 空 | 作为 `Authorization: Bearer <密钥>` 发送；留空则不带鉴权头 |
+| `webhookEventType` | 事件类型 | input | `blog-content-updated` | 需与 Actions 的 `repository_dispatch.types` 一致 |
+| `webhookDebounceSeconds` | 防抖窗口（秒） | number | `10` | 窗口内多次变更合并为一次 |
+| `webhookMaxRetries` | 失败重试次数 | number | `2` | 不含首次尝试 |
+
+后端只在配置**实际发生变化**或文章**被发布 / 已发布文章被更新**时才发通知；
+草稿编辑、保存相同配置都不触发。
+
+### `GET /api/admin/logs`
+
+| 项目 | 说明 |
+| --- | --- |
+| 入参 | `page`（从 0 开始）、`size`（≤ 100）、`type`（如 `DEPLOY_NOTIFY`）、`status`（`SUCCESS` / `FAILED`） |
+| 响应 | `data` = `{ items, page, size, totalElements, totalPages }`；每项含 `type` / `scene` / `status` / `attempt` / `message` / `detail` / `createdAt` |
+| 鉴权失败 | HTTP 401，`code` = 40101 |
+
+前端实现：`src/api/logs.js`（请求封装）+ `src/views/LogsView.vue`（表格 + 筛选 + 分页）。
+日志详情已脱敏，只包含目标主机路径、状态码与响应片段，鉴权头与密钥不会出现在页面上。
 
 ## 账号安全（用户名 / 密码）
 

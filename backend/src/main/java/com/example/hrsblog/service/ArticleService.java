@@ -14,10 +14,12 @@ import com.example.hrsblog.dto.ArticleQuery;
 import com.example.hrsblog.dto.ArticleSummaryResponse;
 import com.example.hrsblog.dto.ArticleUpdateRequest;
 import com.example.hrsblog.dto.TagResponse;
+import com.example.hrsblog.event.ContentChangedEvent;
 import com.example.hrsblog.repository.ArticleRepository;
 import com.example.hrsblog.repository.TagRepository;
 import jakarta.persistence.EntityManager;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -28,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.text.Normalizer;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -43,6 +46,10 @@ import java.util.Set;
  *
  * <p>可见性规则集中在服务层：访客列表/详情只查询 {@code status = PUBLISHED}，
  * 草稿与不存在的 slug 对外表现一致（404），不泄露草稿存在性。
+ *
+ * <p>发布埋点：文章「被发布」或「已发布文章内容被更新」时发布
+ * {@link ContentChangedEvent}，驱动「内容变更 → Webhook 通知 → CI 重建」链路；
+ * 草稿的创建与编辑不触发任何外部通知。
  */
 @Slf4j
 @Service
@@ -56,11 +63,16 @@ public class ArticleService {
     private final ArticleRepository articleRepository;
     private final TagRepository tagRepository;
     private final EntityManager entityManager;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public ArticleService(ArticleRepository articleRepository, TagRepository tagRepository, EntityManager entityManager) {
+    public ArticleService(ArticleRepository articleRepository,
+                          TagRepository tagRepository,
+                          EntityManager entityManager,
+                          ApplicationEventPublisher eventPublisher) {
         this.articleRepository = articleRepository;
         this.tagRepository = tagRepository;
         this.entityManager = entityManager;
+        this.eventPublisher = eventPublisher;
     }
 
     /** 管理员投递文章：status=PUBLISHED 时写入 published_at，slug 冲突返回 409。 */
@@ -96,6 +108,10 @@ public class ArticleService {
         // created_at / updated_at 由数据库默认值生成，refresh 后回填到响应
         entityManager.refresh(saved);
         log.info("文章已投递 slug={} status={} articleId={}", saved.getSlug(), saved.getStatus(), saved.getId());
+        if (status == Article.ArticleStatus.PUBLISHED) {
+            // 直接发布即视为「文章发布」，草稿投递不触发任何外部通知
+            publishContentChanged(ContentChangedEvent.REASON_ARTICLE_PUBLISHED);
+        }
         return toDetail(saved);
     }
 
@@ -143,6 +159,9 @@ public class ArticleService {
         Article article = articleRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ARTICLE_NOT_FOUND));
 
+        // 变更前的状态：用来区分「首次发布」与「已发布文章内容更新」
+        Article.ArticleStatus previousStatus = article.getStatus();
+
         String slug = request.slug().trim();
         if (!slug.equals(article.getSlug()) && articleRepository.existsBySlugAndIdNot(slug, id)) {
             throw new BusinessException(ErrorCode.SLUG_CONFLICT);
@@ -175,7 +194,34 @@ public class ArticleService {
         // updated_at 由数据库 ON UPDATE 生成，refresh 后回填到响应
         entityManager.refresh(saved);
         log.info("文章已更新 articleId={} slug={} status={}", saved.getId(), saved.getSlug(), saved.getStatus());
+        publishArticleContentChanged(previousStatus, status);
         return toDetail(saved);
+    }
+
+    /**
+     * 根据「变更前状态 → 变更后状态」决定是否发出内容变更通知。
+     *
+     * <ul>
+     *   <li>草稿 → 已发布：首次发布，触发 {@code article_published}；</li>
+     *   <li>已发布 → 已发布：已发布文章内容更新，触发 {@code article_updated}；</li>
+     *   <li>其余（草稿编辑、改回草稿）：不触发任何外部通知。</li>
+     * </ul>
+     */
+    private void publishArticleContentChanged(Article.ArticleStatus previousStatus,
+                                              Article.ArticleStatus currentStatus) {
+        if (currentStatus != Article.ArticleStatus.PUBLISHED) {
+            return;
+        }
+        if (previousStatus == Article.ArticleStatus.PUBLISHED) {
+            publishContentChanged(ContentChangedEvent.REASON_ARTICLE_UPDATED);
+            return;
+        }
+        publishContentChanged(ContentChangedEvent.REASON_ARTICLE_PUBLISHED);
+    }
+
+    /** 发布内容变更事件：事务提交后由部署通知服务消费。 */
+    private void publishContentChanged(String reason) {
+        eventPublisher.publishEvent(new ContentChangedEvent(List.of(reason), Instant.now()));
     }
 
     /**

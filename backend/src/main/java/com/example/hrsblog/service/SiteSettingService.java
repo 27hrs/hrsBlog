@@ -3,18 +3,23 @@ package com.example.hrsblog.service;
 import com.example.hrsblog.domain.SiteSetting;
 import com.example.hrsblog.domain.SiteSetting.ValueType;
 import com.example.hrsblog.dto.SettingValuesResponse;
+import com.example.hrsblog.event.ContentChangedEvent;
 import com.example.hrsblog.repository.SiteSettingRepository;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 站点配置业务：基于 {@code site_setting} 表的 key/value 持久化。
@@ -25,7 +30,9 @@ import java.util.Map;
  *       决定，前端只提交 key/value 扁平 map；</li>
  *   <li>保存采用「整体替换」语义：事务内 upsert 本次提交的键、删除未提交的旧键，
  *       保证表内状态与提交内容完全一致；</li>
- *   <li>访客接口只输出 {@code is_public=true} 的键，私密配置（集成、高级）永不外泄。</li>
+ *   <li>访客接口只输出 {@code is_public=true} 的键，私密配置（集成、高级）永不外泄；</li>
+ *   <li>保存时逐项比对新旧值，只有实际发生变化才发布
+ *       {@link ContentChangedEvent}，供「内容变更 → Webhook 通知 → CI 重建」链路消费。</li>
  * </ul>
  */
 @Slf4j
@@ -38,6 +45,7 @@ public class SiteSettingService {
 
     private final SiteSettingRepository siteSettingRepository;
     private final ObjectMapper objectMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     /** 读取全部配置（管理端）：按 value_type 反序列化为原生类型。 */
     @Transactional(readOnly = true)
@@ -71,14 +79,25 @@ public class SiteSettingService {
         return errors;
     }
 
-    /** 整体替换保存：必须在 {@link #validate(Map)} 通过后调用。 */
+    /**
+     * 整体替换保存：必须在 {@link #validate(Map)} 通过后调用。
+     *
+     * <p>保存前先逐项比对「新值 vs 旧值」，只有真正发生变化的配置才会发布
+     * {@link ContentChangedEvent}：保存一份与现状完全相同的配置不应触发任何外部通知
+     * （例如只是点了一次保存按钮）。
+     */
     @Transactional
     public void replaceAll(Map<String, Object> settings) {
         List<SiteSetting> existing = siteSettingRepository.findAllByOrderByConfigGroupAscSortOrderAsc();
         Map<String, SiteSetting> existingByKey = new LinkedHashMap<>();
-        existing.forEach(row -> existingByKey.put(row.getConfigKey(), row));
+        Map<String, String> oldValues = new LinkedHashMap<>();
+        existing.forEach(row -> {
+            existingByKey.put(row.getConfigKey(), row);
+            oldValues.put(row.getConfigKey(), row.getConfigValue());
+        });
 
         List<SiteSetting> toSave = new ArrayList<>();
+        Set<String> changedKeys = new LinkedHashSet<>();
         for (Map.Entry<String, Object> entry : settings.entrySet()) {
             SiteSettingCatalog.FieldSpec spec = SiteSettingCatalog.get(entry.getKey());
             if (spec == null) {
@@ -90,20 +109,38 @@ public class SiteSettingService {
                 row.setConfigGroup(spec.group());
                 row.setConfigKey(entry.getKey());
             }
-            row.setConfigValue(serialize(spec, entry.getValue()));
+            String serialized = serialize(spec, entry.getValue());
+            row.setConfigValue(serialized);
             row.setValueType(spec.valueType());
             row.setDescription(spec.description());
             row.setPublicSetting(spec.publicSetting());
             row.setSortOrder(spec.sortOrder());
             toSave.add(row);
+
+            String oldValue = oldValues.get(entry.getKey());
+            if (oldValue == null) {
+                // 新增的配置项：只有写入非空值才算“发生变化”
+                if (!serialized.isBlank()) {
+                    changedKeys.add(entry.getKey());
+                }
+            } else if (!oldValue.equals(serialized)) {
+                changedKeys.add(entry.getKey());
+            }
         }
 
-        // 本次未提交的旧键一律删除，保持“整体替换”语义
+        // 本次未提交的旧键一律删除，保持“整体替换”语义；删除同样算一次变更
         if (!existingByKey.isEmpty()) {
             siteSettingRepository.deleteAllInBatch(existingByKey.values());
+            changedKeys.addAll(existingByKey.keySet());
         }
         siteSettingRepository.saveAll(toSave);
-        log.info("站点配置已保存 keys={}", toSave.stream().map(SiteSetting::getConfigKey).toList());
+        log.info("站点配置已保存 keys={} changed={}", toSave.stream().map(SiteSetting::getConfigKey).toList(), changedKeys);
+
+        if (!changedKeys.isEmpty()) {
+            // 事务提交后才会真正通知外部系统，避免回滚了却把“已变更”推给 CI
+            eventPublisher.publishEvent(new ContentChangedEvent(
+                    List.of(ContentChangedEvent.REASON_SETTINGS_UPDATED), Instant.now()));
+        }
     }
 
     // ── 校验 ──────────────────────────────────────────────

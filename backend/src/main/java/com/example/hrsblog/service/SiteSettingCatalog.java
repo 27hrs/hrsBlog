@@ -100,6 +100,11 @@ public final class SiteSettingCatalog {
         put(spec("analyticsSiteId", "integrations", ValueType.STRING, false, ++order, "统计站点 ID", 100d));
         put(spec("analyticsScriptUrl", "integrations", ValueType.STRING, false, ++order, "自定义统计脚本地址", 300d));
         put(spec("webhookUrl", "integrations", ValueType.STRING, false, ++order, "发布通知 Webhook 地址", 300d));
+        put(spec("webhookEnabled", "integrations", ValueType.BOOLEAN, false, ++order, "是否启用发布通知 Webhook"));
+        put(spec("webhookSecret", "integrations", ValueType.STRING, false, ++order, "Webhook 鉴权密钥（Bearer Token）", 300d));
+        put(spec("webhookEventType", "integrations", ValueType.STRING, false, ++order, "Webhook 事件类型，默认 blog-content-updated", 64d));
+        put(spec("webhookDebounceSeconds", "integrations", ValueType.NUMBER, false, ++order, "Webhook 防抖窗口（秒）", 0d, 600d));
+        put(spec("webhookMaxRetries", "integrations", ValueType.NUMBER, false, ++order, "Webhook 失败重试次数", 0d, 10d));
 
         // ── advanced：高级（私密：站点运维开关） ──
         put(spec("siteStatus", "advanced", ValueType.STRING, false, ++order, "站点状态 online/maintenance", 16d));

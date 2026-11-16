@@ -47,6 +47,16 @@ hrsblog:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:27080,http://localhost:27081}
   transport:
     proxy-protocol-version: ${PROXY_PROTOCOL_VERSION:}
+  deploy:
+    # 部署通知（「内容变更 → Webhook → CI 重建」）的运行期参数。
+    # 事件类型 / 防抖窗口 / 重试次数可在后台「站点设置 → 集成」里覆盖，这里是兜底值。
+    default-event-type: blog-content-updated
+    default-debounce-seconds: 10
+    default-max-retries: 2
+    # 逐次退避（秒）：第 1 次失败后等 5 秒，第 2 次等 15 秒，以此类推。
+    backoff-seconds: [5, 15, 30, 60]
+    connect-timeout-seconds: 5
+    read-timeout-seconds: 10
   admin:
     # 可选：首次启动时按环境变量创建管理员（表内已存在管理员时不做任何事）
     bootstrap-username: user

@@ -28,6 +28,10 @@ const groups = [
     label: '站点',
     items: [{ name: 'settings', label: '站点设置', icon: 'settings' }],
   },
+  {
+    label: '系统',
+    items: [{ name: 'logs', label: '系统日志', icon: 'file-edit' }],
+  },
 ]
 
 const blogUrl = computed(() => {
