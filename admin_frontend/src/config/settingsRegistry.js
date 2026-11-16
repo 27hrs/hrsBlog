@@ -492,6 +492,14 @@ export const settingSections = [
       },
     ],
   },
+  {
+    key: 'account',
+    label: '账号安全',
+    icon: 'lock',
+    description: '修改管理员用户名与密码。保存令牌会立即签发，当前会话无需重新登录。',
+    custom: 'account',
+    fields: [],
+  },
 ]
 
 export const settingSectionMap = Object.fromEntries(

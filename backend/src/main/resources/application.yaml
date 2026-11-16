@@ -28,6 +28,7 @@ server:
   error:
     include-message: never
     include-stacktrace: never
+  forward-headers-strategy: native
 
 hrsblog:
   jwt:

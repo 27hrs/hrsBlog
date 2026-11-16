@@ -16,6 +16,10 @@ spring:
     init:
       mode: never
 
+server:
+  # 测试用 MockMvc 直连，没有反向代理；
+  forward-headers-strategy: native
+
 hrsblog:
   jwt:
     secret: test-only-jwt-secret-please-do-not-use-in-production-0123456789

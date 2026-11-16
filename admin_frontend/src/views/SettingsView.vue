@@ -2,36 +2,21 @@
 import { computed, onMounted, ref } from 'vue'
 import AppIcon from '@/components/common/AppIcon.vue'
 import AppModal from '@/components/common/AppModal.vue'
+import AccountSecurityPanel from '@/components/settings/AccountSecurityPanel.vue'
 import SchemaForm from '@/components/settings/SchemaForm.vue'
 import {
   firstSectionWithErrors,
   settingSections,
 } from '@/config/settingsRegistry.js'
-import { changePassword, updateUsername } from '@/api/auth.js'
-import { useAuthStore } from '@/stores/auth.js'
 import { useSettingsStore } from '@/stores/settings.js'
 import { useToastStore } from '@/stores/toast.js'
 import { formatDateTime } from '@/utils/format.js'
 
 const settings = useSettingsStore()
-const auth = useAuthStore()
 const toast = useToastStore()
 
 const activeKey = ref(settingSections[0].key)
 const resetOpen = ref(false)
-
-// 账号安全：用户名与密码各自独立提交，互不影响
-const USERNAME_PATTERN = /^[a-zA-Z0-9_-]{3,32}$/
-
-const usernameForm = ref({ newUsername: '' })
-const usernameFormErrors = ref({})
-const usernameFormError = ref('')
-const saving = ref(false)
-
-const passwordForm = ref({ oldPassword: '', newPassword: '', confirmPassword: '' })
-const passwordFormErrors = ref({})
-const passwordFormError = ref('')
-const savingPassword = ref(false)
 
 const activeSection = computed(
   () => settingSections.find((section) => section.key === activeKey.value) || settingSections[0],
@@ -42,6 +27,9 @@ const activeIndex = computed(
 const totalFields = computed(() =>
   settingSections.reduce((count, section) => count + section.fields.length, 0),
 )
+
+/** 账号安全等自定义分类不走站点设置的保存流程，表单各自独立提交。 */
+const isCustomSection = computed(() => Boolean(activeSection.value.custom))
 
 const sourceDescription = computed(() => {
   if (settings.loading) return '正在读取设置…'
@@ -87,109 +75,6 @@ function confirmReset() {
 function formatSaveTime(value) {
   return value ? formatDateTime(value) : '尚未保存'
 }
-
-/** 用户名校验：3-32 位，字母/数字/下划线/中划线，且不能与当前用户名相同。 */
-function validateUsername() {
-  const errors = {}
-  const value = usernameForm.value.newUsername.trim()
-
-  if (!value) {
-    errors.newUsername = '请输入新用户名'
-  } else if (!USERNAME_PATTERN.test(value)) {
-    errors.newUsername = '用户名只能包含字母、数字、下划线与中划线，长度 3-32'
-  } else if (value === auth.username) {
-    errors.newUsername = '新用户名不能与当前用户名相同'
-  }
-
-  usernameFormErrors.value = errors
-  return !Object.keys(errors).length
-}
-
-/** 密码校验：原密码必填，新密码 8-64 位且同时包含字母和数字，两次输入需一致。 */
-function validatePassword() {
-  const errors = {}
-  const { oldPassword, newPassword, confirmPassword } = passwordForm.value
-
-  if (!oldPassword) {
-    errors.oldPassword = '请输入原密码'
-  }
-
-  if (!newPassword) {
-    errors.newPassword = '请输入新密码'
-  } else if (newPassword.length < 8) {
-    errors.newPassword = '新密码至少 8 位'
-  } else if (newPassword.length > 64) {
-    errors.newPassword = '新密码不能超过 64 位'
-  } else if (!/[a-zA-Z]/.test(newPassword) || !/\d/.test(newPassword)) {
-    errors.newPassword = '新密码必须同时包含字母和数字'
-  }
-
-  if (!confirmPassword) {
-    errors.confirmPassword = '请再次输入新密码'
-  } else if (confirmPassword !== newPassword) {
-    errors.confirmPassword = '两次输入的密码不一致'
-  }
-
-  passwordFormErrors.value = errors
-  return !Object.keys(errors).length
-}
-
-async function submitUsername() {
-  if (saving.value) return
-  usernameFormError.value = ''
-  if (!validateUsername()) return
-
-  const newUsername = usernameForm.value.newUsername.trim()
-  saving.value = true
-  try {
-    const response = await updateUsername({ newUsername })
-    // 新的访问令牌与用户信息同步到本地会话
-    auth.applySession(response)
-    usernameForm.value = { newUsername }
-    usernameFormErrors.value = {}
-    toast.success('用户名已更新，请使用新用户名登录')
-  } catch (error) {
-    const fieldErrors = error?.fieldErrors || {}
-    if (fieldErrors.newUsername) {
-      // 字段级错误已经在输入框下方展示，不再重复弹提示
-      usernameFormErrors.value = { ...usernameFormErrors.value, ...fieldErrors }
-    } else {
-      usernameFormError.value = error?.message || '用户名更新失败，请稍后重试'
-      toast.error(usernameFormError.value)
-    }
-  } finally {
-    saving.value = false
-  }
-}
-
-async function submitPassword() {
-  if (savingPassword.value) return
-  passwordFormError.value = ''
-  if (!validatePassword()) return
-
-  const { oldPassword, newPassword } = passwordForm.value
-  savingPassword.value = true
-  try {
-    const response = await changePassword({ oldPassword, newPassword })
-    // 密码变更同样会签发新令牌，用户信息保持不变
-    auth.applySession(response)
-    passwordForm.value = { oldPassword: '', newPassword: '', confirmPassword: '' }
-    passwordFormErrors.value = {}
-    toast.success('密码已修改，请牢记新密码')
-  } catch (error) {
-    const fieldErrors = error?.fieldErrors || {}
-    if (fieldErrors.newPassword) {
-      // 字段级错误已经在输入框下方展示，不再重复弹提示
-      passwordFormErrors.value = { ...passwordFormErrors.value, ...fieldErrors }
-    } else {
-      passwordFormError.value = error?.message || '密码修改失败，请稍后重试'
-      toast.error(passwordFormError.value)
-    }
-    // 失败时保留原密码，方便用户直接重试
-  } finally {
-    savingPassword.value = false
-  }
-}
 </script>
 
 <template>
@@ -202,10 +87,12 @@ async function submitPassword() {
           {{ settingSections.length }} 个分类 · {{ totalFields }} 项配置
         </p>
         <h1 class="settings-head__title">站点设置</h1>
-        <p class="settings-head__lead">把这里调成你希望读者记住的样子。所有更改统一保存。</p>
+        <p class="settings-head__lead">
+          {{ isCustomSection ? '此分类独立保存，修改后立即生效。' : '把这里调成你希望读者记住的样子。所有更改统一保存。' }}
+        </p>
       </div>
 
-      <div class="settings-head__status">
+      <div v-if="!isCustomSection" class="settings-head__status">
         <span
           class="sync-pill"
           :class="settings.source === 'remote' ? 'sync-pill--remote' : 'sync-pill--local'"
@@ -221,7 +108,7 @@ async function submitPassword() {
     </header>
 
     <div
-      v-if="!settings.loading && settings.source === 'local'"
+      v-if="!isCustomSection && !settings.loading && settings.source === 'local'"
       class="callout callout--info settings-source-note"
     >
       <AppIcon class="callout__icon" name="info" :size="15" />
@@ -229,178 +116,10 @@ async function submitPassword() {
         后端尚未提供站点设置读写接口，配置会安全地保存在当前浏览器；它不会自动同步到 VitePress 构建产物。
       </span>
     </div>
-    <div v-else-if="settings.loadError" class="callout callout--warning settings-source-note">
+    <div v-else-if="!isCustomSection && settings.loadError" class="callout callout--warning settings-source-note">
       <AppIcon class="callout__icon" name="alert-triangle" :size="15" />
       <span>{{ settings.loadError }}，当前使用本机缓存。</span>
     </div>
-
-    <section class="panel account-panel" aria-labelledby="account-panel-title">
-      <div class="account-panel__head">
-        <div class="account-panel__copy">
-          <p class="account-panel__eyebrow">
-            ACCOUNT / SECURITY
-            <span class="account-panel__eyebrow-rule" aria-hidden="true" />
-          </p>
-          <h2 id="account-panel-title" class="account-panel__title">账号安全</h2>
-          <p class="account-panel__description">
-            修改用户名或密码后，服务端会签发新的访问令牌，当前会话会自动更新，无需重新登录。
-          </p>
-        </div>
-        <AppIcon class="account-panel__watermark" name="lock" :size="22" />
-      </div>
-
-      <div class="account-panel__body">
-        <form class="account-form" novalidate @submit.prevent="submitUsername">
-          <div class="account-form__head">
-            <h3 class="account-form__title">修改用户名</h3>
-            <span class="account-form__subtitle">Username</span>
-          </div>
-
-          <div class="form-field">
-            <div class="form-label-row">
-              <label class="form-label" for="account-username">新用户名</label>
-              <span class="form-label__optional">Username</span>
-            </div>
-            <div class="input-group">
-              <span class="input-group__icon">
-                <AppIcon name="user" :size="16" />
-              </span>
-              <input
-                id="account-username"
-                v-model="usernameForm.newUsername"
-                class="input"
-                :class="{ 'input--invalid': usernameFormErrors.newUsername }"
-                type="text"
-                name="username"
-                autocomplete="username"
-                spellcheck="false"
-                placeholder="your-name"
-                :disabled="saving"
-                @input="usernameFormErrors.newUsername = ''; usernameFormError = ''"
-              />
-            </div>
-            <p class="form-help">
-              3-32 位，仅允许字母、数字、下划线与中划线；用户名同时是登录账号。
-            </p>
-            <p v-if="usernameFormErrors.newUsername" class="form-error">
-              <AppIcon name="alert-circle" :size="13" />
-              {{ usernameFormErrors.newUsername }}
-            </p>
-          </div>
-
-          <div v-if="usernameFormError" class="callout callout--danger account-form__error">
-            <AppIcon class="callout__icon" name="alert-circle" :size="15" />
-            <span>{{ usernameFormError }}</span>
-          </div>
-
-          <button class="btn btn--primary" type="submit" :disabled="saving">
-            <span v-if="saving" class="btn__spinner" />
-            {{ saving ? '正在提交…' : '更新用户名' }}
-          </button>
-        </form>
-
-        <form class="account-form" novalidate @submit.prevent="submitPassword">
-          <div class="account-form__head">
-            <h3 class="account-form__title">修改密码</h3>
-            <span class="account-form__subtitle">Password</span>
-          </div>
-
-          <div class="form-field">
-            <div class="form-label-row">
-              <label class="form-label" for="account-old-password">原密码</label>
-              <span class="form-label__optional">Current password</span>
-            </div>
-            <div class="input-group">
-              <span class="input-group__icon">
-                <AppIcon name="lock" :size="16" />
-              </span>
-              <input
-                id="account-old-password"
-                v-model="passwordForm.oldPassword"
-                class="input"
-                :class="{ 'input--invalid': passwordFormErrors.oldPassword }"
-                type="password"
-                name="current-password"
-                autocomplete="current-password"
-                placeholder="当前使用的密码"
-                :disabled="savingPassword"
-                @input="passwordFormErrors.oldPassword = ''; passwordFormError = ''"
-              />
-            </div>
-            <p v-if="passwordFormErrors.oldPassword" class="form-error">
-              <AppIcon name="alert-circle" :size="13" />
-              {{ passwordFormErrors.oldPassword }}
-            </p>
-          </div>
-
-          <div class="form-field">
-            <div class="form-label-row">
-              <label class="form-label" for="account-new-password">新密码</label>
-              <span class="form-label__optional">New password</span>
-            </div>
-            <div class="input-group">
-              <span class="input-group__icon">
-                <AppIcon name="lock" :size="16" />
-              </span>
-              <input
-                id="account-new-password"
-                v-model="passwordForm.newPassword"
-                class="input"
-                :class="{ 'input--invalid': passwordFormErrors.newPassword }"
-                type="password"
-                name="new-password"
-                autocomplete="new-password"
-                placeholder="至少 8 位，含字母与数字"
-                :disabled="savingPassword"
-                @input="passwordFormErrors.newPassword = ''; passwordFormError = ''"
-              />
-            </div>
-            <p v-if="passwordFormErrors.newPassword" class="form-error">
-              <AppIcon name="alert-circle" :size="13" />
-              {{ passwordFormErrors.newPassword }}
-            </p>
-          </div>
-
-          <div class="form-field">
-            <div class="form-label-row">
-              <label class="form-label" for="account-confirm-password">确认新密码</label>
-              <span class="form-label__optional">Confirm password</span>
-            </div>
-            <div class="input-group">
-              <span class="input-group__icon">
-                <AppIcon name="lock" :size="16" />
-              </span>
-              <input
-                id="account-confirm-password"
-                v-model="passwordForm.confirmPassword"
-                class="input"
-                :class="{ 'input--invalid': passwordFormErrors.confirmPassword }"
-                type="password"
-                name="confirm-password"
-                autocomplete="new-password"
-                placeholder="再次输入新密码"
-                :disabled="savingPassword"
-                @input="passwordFormErrors.confirmPassword = ''; passwordFormError = ''"
-              />
-            </div>
-            <p v-if="passwordFormErrors.confirmPassword" class="form-error">
-              <AppIcon name="alert-circle" :size="13" />
-              {{ passwordFormErrors.confirmPassword }}
-            </p>
-          </div>
-
-          <div v-if="passwordFormError" class="callout callout--danger account-form__error">
-            <AppIcon class="callout__icon" name="alert-circle" :size="15" />
-            <span>{{ passwordFormError }}</span>
-          </div>
-
-          <button class="btn btn--primary" type="submit" :disabled="savingPassword">
-            <span v-if="savingPassword" class="btn__spinner" />
-            {{ savingPassword ? '正在提交…' : '更新密码' }}
-          </button>
-        </form>
-      </div>
-    </section>
 
     <div class="settings-layout">
       <aside class="settings-nav" aria-label="设置分类">
@@ -430,7 +149,7 @@ async function submitPassword() {
             />
           </button>
         </nav>
-        <div class="settings-nav__foot">
+        <div v-if="!isCustomSection" class="settings-nav__foot">
           <span class="pulse-dot" />
           <span>{{ sourceDescription }}</span>
         </div>
@@ -453,7 +172,7 @@ async function submitPassword() {
           <AppIcon class="settings-main__watermark" :name="activeSection.icon" :size="22" />
         </div>
 
-        <div v-if="settings.loading" class="panel settings-form-panel settings-form-skeleton">
+        <div v-if="settings.loading && !isCustomSection" class="panel settings-form-panel settings-form-skeleton">
           <div v-for="index in 6" :key="index" class="settings-skeleton-row">
             <span class="skeleton skeleton--text" style="width: 24%" />
             <span class="skeleton settings-skeleton-row__input" />
@@ -462,7 +181,9 @@ async function submitPassword() {
 
         <Transition v-else name="section-swap" mode="out-in">
           <div :key="activeSection.key" class="panel settings-form-panel">
+            <AccountSecurityPanel v-if="activeSection.custom === 'account'" />
             <SchemaForm
+              v-else
               :section="activeSection"
               :model-value="settings.values"
               :errors="settings.errors"
@@ -471,7 +192,7 @@ async function submitPassword() {
           </div>
         </Transition>
 
-        <div class="settings-savebar">
+        <div v-if="!isCustomSection" class="settings-savebar">
           <div class="settings-savebar__status">
             <span v-if="settings.loading" class="settings-savebar__muted">正在读取配置…</span>
             <span v-else-if="settings.isDirty" class="settings-savebar__dirty">
@@ -624,110 +345,6 @@ async function submitPassword() {
 
 .settings-source-note {
   align-items: flex-start;
-}
-
-.account-panel {
-  padding: 20px 22px 22px;
-}
-
-.account-panel__head {
-  display: flex;
-  gap: 18px;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding-bottom: 15px;
-  margin-bottom: 16px;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.account-panel__copy {
-  min-width: 0;
-}
-
-.account-panel__eyebrow {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  margin-bottom: 7px;
-  font-family: var(--font-mono);
-  font-size: 9px;
-  color: var(--text-tertiary);
-  letter-spacing: 0.04em;
-}
-
-.account-panel__eyebrow-rule {
-  width: 18px;
-  height: 1px;
-  background: var(--border-strong);
-}
-
-.account-panel__title {
-  font-size: var(--text-xl);
-  font-weight: var(--weight-semibold);
-  line-height: 1.3;
-  color: var(--text-primary);
-  letter-spacing: -0.02em;
-}
-
-.account-panel__description {
-  max-width: 640px;
-  margin-top: 5px;
-  font-size: var(--text-xs);
-  line-height: 1.65;
-  color: var(--text-tertiary);
-}
-
-.account-panel__watermark {
-  flex: none;
-  margin-top: 7px;
-  color: var(--text-disabled);
-}
-
-.account-panel__body {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-
-.account-form {
-  display: flex;
-  flex-direction: column;
-  gap: 13px;
-  min-width: 0;
-  padding: 16px;
-  background: var(--bg-inset);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-}
-
-.account-form__head {
-  display: flex;
-  gap: 8px;
-  align-items: baseline;
-  justify-content: space-between;
-}
-
-.account-form__title {
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
-  color: var(--text-primary);
-}
-
-.account-form__subtitle {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  color: var(--text-tertiary);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-.account-form__error {
-  align-items: flex-start;
-  font-size: var(--text-xs);
-}
-
-.account-form .btn--primary {
-  align-self: flex-start;
 }
 
 .settings-layout {
@@ -1047,12 +664,6 @@ async function submitPassword() {
   }
 }
 
-@media (max-width: 960px) {
-  .account-panel__body {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
 @media (max-width: 860px) {
   .settings-head {
     align-items: flex-start;
@@ -1142,18 +753,6 @@ async function submitPassword() {
 
   .settings-source-note {
     font-size: 10px;
-  }
-
-  .account-panel {
-    padding: 16px 15px 18px;
-  }
-
-  .account-form {
-    padding: 13px;
-  }
-
-  .account-form .btn--primary {
-    align-self: stretch;
   }
 }
 </style>
