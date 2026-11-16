@@ -34,25 +34,36 @@ export const useAuthStore = defineStore('auth', () => {
     return true
   }
 
-  async function login(credentials) {
-    lastError.value = ''
-    const payload = await loginRequest(credentials)
+  /**
+   * 用新的令牌响应刷新本地会话。
+   * - replaceUser: true 时整体替换用户信息（登录场景）
+   * - 否则合并返回的用户信息（改用户名场景只覆盖 username 等字段）
+   */
+  function applySession(payload, { replaceUser = false } = {}) {
     if (!payload?.accessToken) {
-      throw new Error('登录响应缺少访问令牌')
+      throw new Error('响应缺少访问令牌')
     }
-
     token.value = payload.accessToken
     tokenType.value = payload.tokenType || 'Bearer'
     expiresAt.value = payload.expiresIn ? Date.now() + Number(payload.expiresIn) * 1000 : 0
-    user.value = payload.user || null
-
+    if (replaceUser) {
+      user.value = payload.user || null
+    } else if (payload.user) {
+      user.value = { ...user.value, ...payload.user }
+    }
     writeSession({
       token: token.value,
       tokenType: tokenType.value,
       expiresAt: expiresAt.value,
       user: user.value,
     })
+    return payload
+  }
 
+  async function login(credentials) {
+    lastError.value = ''
+    const payload = await loginRequest(credentials)
+    applySession(payload, { replaceUser: true })
     return payload
   }
 
@@ -77,6 +88,7 @@ export const useAuthStore = defineStore('auth', () => {
     initials,
     hasValidSession,
     login,
+    applySession,
     clearSession,
   }
 })

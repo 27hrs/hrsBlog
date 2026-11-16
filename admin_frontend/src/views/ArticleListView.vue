@@ -7,7 +7,7 @@ import AppPagination from '@/components/common/AppPagination.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import AppModal from '@/components/common/AppModal.vue'
 import { resolveAssetUrl } from '@/api/client.js'
-import { deleteArticle } from '@/api/articles.js'
+import { deleteArticle, deleteArticles } from '@/api/articles.js'
 import { loadArticleWorkspace, managementStatus, publishedUrl } from '@/services/articleAdmin.js'
 import { removeLocalArticle } from '@/services/localLibrary.js'
 import { ARTICLE_CATEGORIES, categoryLabel, inferCategoryFromTags } from '@/data/categories.js'
@@ -160,7 +160,7 @@ const selectedArticles = computed(() =>
 const selectedRemovable = computed(
   () =>
     selectedArticles.value.length > 0 &&
-    selectedArticles.value.every((article) => isLocalDraft(article)),
+    selectedArticles.value.every((article) => isRemovable(article)),
 )
 
 const selectedPublished = computed(() =>
@@ -169,6 +169,19 @@ const selectedPublished = computed(() =>
 
 const removalCopy = computed(() => {
   if (removalMode.value === 'bulk') {
+    // 批量删除：只要包含服务端文章，就走「服务端软删除 + 本地草稿清理」的文案
+    const serverCount = removalItems.value.filter((article) => Boolean(article.id)).length
+    if (serverCount) {
+      const localCount = removalItems.value.length - serverCount
+      const breakdown = [`${serverCount} 篇服务端文章`]
+      if (localCount) breakdown.push(`${localCount} 篇本地草稿`)
+      return {
+        title: `删除 ${removalItems.value.length} 篇文章？`,
+        description: `本次包含${breakdown.join('、')}。服务端文章将从前台与管理列表中移除（软删除），删除后无法在界面中恢复。`,
+        note: '服务端文章会调用后端批量删除接口；本地草稿只清理当前浏览器中的记录，不会请求服务器。',
+        confirm: '删除文章',
+      }
+    }
     return {
       title: `移除 ${removalItems.value.length} 篇本地草稿？`,
       description:
@@ -200,6 +213,11 @@ function articleKey(article) {
 
 function isLocalDraft(article) {
   return article?.dataSource === 'local' && article.status === 'DRAFT'
+}
+
+/** 可删除：本地草稿（仅清理本机记录）或服务端文章（软删除）。 */
+function isRemovable(article) {
+  return isLocalDraft(article) || Boolean(article.id)
 }
 
 function displayTagNames(article) {
@@ -347,6 +365,37 @@ function askRemoveSelected() {
   removalOpen.value = true
 }
 
+/**
+ * 批量删除服务端文章：一次调用后端批量删除接口，按逐条结果给出反馈。
+ * 返回实际删除的数量；请求失败或全部失败时返回 0（由调用方保留弹窗）。
+ */
+async function removeServerArticlesInBulk(serverItems) {
+  const ids = serverItems.map((article) => article.id)
+
+  let result
+  try {
+    result = await deleteArticles(ids)
+  } catch (error) {
+    toast.error(error.message || '批量删除失败，请稍后重试')
+    return 0
+  }
+
+  const failed = Array.isArray(result?.failed) ? result.failed : []
+  const successCount = Number(result?.successCount) || 0
+  const deleted = successCount || (failed.length ? 0 : ids.length)
+  const failureDetail = failed.map((item) => `#${item.id}（${item.message}）`).join('、')
+
+  if (!failed.length) {
+    toast.success(`已删除 ${deleted} 篇文章`)
+  } else if (successCount > 0) {
+    toast.warning(`已删除 ${successCount} 篇，${failed.length} 篇失败：${failureDetail}`)
+  } else {
+    toast.error(`批量删除失败：${failureDetail}`)
+  }
+
+  return deleted
+}
+
 async function confirmRemove() {
   if (!removalItems.value.length || removing.value) return
   removing.value = true
@@ -354,10 +403,21 @@ async function confirmRemove() {
   // 有 id 的为服务端文章（调用后端删除接口），无 id 的为本地草稿（仅清理本机记录）
   const serverItems = removalItems.value.filter((article) => Boolean(article.id))
   const localItems = removalItems.value.filter((article) => !article.id)
+  const isBulk = removalMode.value === 'bulk'
 
   try {
-    for (const article of serverItems) {
-      await deleteArticle(article.id)
+    if (isBulk && serverItems.length) {
+      // 批量删除：服务端文章一次调用批量删除接口
+      const deleted = await removeServerArticlesInBulk(serverItems)
+      if (!deleted) {
+        // 请求失败或全部失败：保留弹窗，方便用户重试
+        return
+      }
+    } else {
+      // 单条删除仍逐条调用删除接口，保持原有行为
+      for (const article of serverItems) {
+        await deleteArticle(article.id)
+      }
     }
 
     if (localItems.length) {
@@ -372,7 +432,9 @@ async function confirmRemove() {
     removalOpen.value = false
 
     if (serverItems.length) {
-      toast.success(serverItems.length > 1 ? `已删除 ${serverItems.length} 篇文章` : '文章已删除')
+      if (!isBulk) {
+        toast.success(serverItems.length > 1 ? `已删除 ${serverItems.length} 篇文章` : '文章已删除')
+      }
       // 删除成功后重新拉取列表，并在末页删空时回退页码
       await load({ silent: true })
       const maxPage = Math.max(1, Math.ceil(filtered.value.length / pageSize.value))
@@ -380,7 +442,7 @@ async function confirmRemove() {
         page.value = maxPage
       }
     } else {
-      toast.success(removalMode.value === 'bulk' ? '本地草稿已移除' : '本地草稿记录已移除')
+      toast.success(isBulk ? '本地草稿已移除' : '本地草稿记录已移除')
     }
   } catch (error) {
     toast.error(error.message || '删除失败，请稍后重试')
@@ -539,11 +601,13 @@ const emptyDescription = computed(() => {
             class="btn btn--sm btn--ghost bulk-bar__danger"
             type="button"
             :disabled="!selectedRemovable"
-            :title="selectedRemovable ? '只移除本机草稿记录，不删除服务器端数据' : '仅全部为本地草稿时可批量移除'"
+            :title="selectedRemovable
+              ? '服务端文章将被软删除（前台与管理列表不再展示），本地草稿只清理本机记录'
+              : '只能批量删除服务端文章或本地草稿'"
             @click="askRemoveSelected"
           >
             <AppIcon name="trash" :size="13" />
-            批量移除
+            批量删除
           </button>
         </div>
       </div>

@@ -15,4 +15,7 @@ public interface AdminUserRepository extends JpaRepository<AdminUser, Long> {
     Optional<AdminUser> findByUsername(String username);
 
     boolean existsByUsername(String username);
+
+    /** 修改用户名时唯一性预检（排除自身 id）。 */
+    boolean existsByUsernameAndIdNot(String username, Long id);
 }

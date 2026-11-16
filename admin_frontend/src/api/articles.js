@@ -114,3 +114,15 @@ export function deleteArticle(id) {
     silent: true,
   })
 }
+
+/**
+ * 批量删除文章（软删除）。返回逐条结果：成功数量与失败明细。
+ * 使用 silent，由调用方统一反馈。
+ */
+export function deleteArticles(ids) {
+  return request('/admin/articles/batch-delete', {
+    method: 'POST',
+    body: { ids: [...ids] },
+    silent: true,
+  })
+}

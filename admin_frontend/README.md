@@ -42,9 +42,9 @@ pnpm format    # Prettier
 | --- | --- | --- |
 | `/login` | 登录 | 居中卡片、统一 401 文案、Token 持久化 |
 | `/dashboard` | 管理主页 | 统计卡 + Unovis 趋势图 + 最近评论/文章 + 待办 |
-| `/articles` | 文章管理 | 搜索、状态/分类/标签筛选、批量操作、分页 |
+| `/articles` | 文章管理 | 搜索、状态/分类/标签筛选、批量删除、分页 |
 | `/articles/new` | 文章投放 | md-editor-v3 编辑区 + 右侧设置面板 |
-| `/settings` | 站点设置 | 注册表驱动的左侧分类导航 + SchemaForm |
+| `/settings` | 站点设置 | 账号安全（用户名 / 密码）+ 注册表驱动的左侧分类导航 + SchemaForm |
 
 所有业务路由懒加载。路由守卫校验本地会话（token + 过期时间），任意管理 API 返回 401 时由统一客户端清理会话并回到登录页。
 
@@ -97,7 +97,9 @@ router + guard
 
 - `POST /api/admin/auth/login`
 - `PUT /api/admin/auth/password`
+- `PUT /api/admin/auth/username`
 - `POST /api/admin/articles`、`GET /api/admin/articles`、`GET /api/admin/articles/{id}`、`PUT /api/admin/articles/{id}`、`DELETE /api/admin/articles/{id}`（列表 / 详情 / 更新 / 软删除均已提供）
+- `POST /api/admin/articles/batch-delete`（批量软删除，逐条返回成功 / 失败明细）
 - `GET /api/admin/assets`、`POST /api/admin/assets`、`DELETE /api/admin/assets/{id}`
 
 因此前端做了明确、可移除的降级：
@@ -107,11 +109,71 @@ router + guard
 | 管理文章列表 | `GET /api/admin/articles`（草稿 + 已发布，串行翻页拉全量）；接口不可用时回退为「公开文章接口 + 本机草稿缓存」 |
 | 草稿 | 通过现有 `POST /api/admin/articles` 新建成功，并把详情缓存到本机以支持列表展示 |
 | 文章更新/删除 | `PUT` / `DELETE /api/admin/articles/{id}`：列表提供编辑与删除入口，删除有二次确认弹窗与加载态，成功后自动刷新列表（末页删空自动回退页码），失败按接口返回的 message 展示；接口不可用时回退为复用本机内容新建副本 |
+| 批量删除 | `POST /api/admin/articles/batch-delete`：一次最多 200 条，逐条返回结果，部分失败不影响已成功的条目 |
+| 账号安全 | `PUT /api/admin/auth/username` 与 `PUT /api/admin/auth/password`：成功后由后端换发新令牌，前端同步更新本地会话 |
 | 分类/置顶/推荐/可见性/定时 | 本机 metadata，会显示「本地」标记；不伪造后端持久化 |
 | 统计/评论/访客 | 后端无接口；文章数为真实接口数据，评论/访客显示「—」，趋势图在开发环境使用明确标注的预览数据 |
 | 站点设置 | 先探测规划接口，不可用时保存本机并明确提示 |
 
 一旦后端补齐对应接口，API 层和页面会优先使用远端能力，无需重写布局。
+
+## 批量删除文章
+
+`POST /api/admin/articles/batch-delete`
+
+| 项目 | 说明 |
+| --- | --- |
+| 请求体 | `{ "ids": [12, 34] }`，`ids` 必填，单次最多 200 条（重复 id 自动去重） |
+| 成功响应 | `data` = `{ totalCount, successCount, failed }` |
+| `totalCount` | 去重后实际处理的条目数 |
+| `successCount` | 成功软删除的条目数 |
+| `failed` | 失败明细数组，每项为 `{ id, code, message }`；成功时为空数组 |
+| 鉴权失败 | HTTP 401，`code` = 40101 |
+| 参数非法 | HTTP 400，`code` = 40000，`data.ids` 给出字段级原因（空数组 / 缺失 / 超过 200 条） |
+
+语义要点：
+
+- 软删除复用单篇删除逻辑——写入 `deleted_at` 并把 slug 改写为 `{slug}-deleted-{id}` 释放唯一键；删除后前台与后台列表、详情均不可见。
+- **部分失败不影响成功项**：不存在的 id 记入 `failed` 并继续处理其余条目，不会回滚已成功的删除。
+- 选 POST 而非带 body 的 DELETE，避免 fetch / 代理对 DELETE body 的兼容问题。
+
+前端交互（`ArticleListView.vue`）：
+
+| 场景 | 行为 |
+| --- | --- |
+| 勾选含服务端文章 | 工具条「批量删除」可用，确认弹窗展示所选数量与服务端 / 本地草稿的拆分 |
+| 全部成功 | `toast.success('已删除 N 篇文章')`，刷新列表并在当前页超界时回退末页 |
+| 部分失败 | `toast.warning('已删除 N 篇，M 篇失败：#id（原因）')`，失败项带 id 与原因 |
+| 全部失败 | `toast.error(...)` 并列出失败明细 |
+| 仅勾选本地草稿 | 不调用后端，仍走本机记录移除（与原有行为一致） |
+
+## 账号安全（用户名 / 密码）
+
+设置页顶部新增「账号安全」卡片，两个表单各自独立校验与提交。
+
+`PUT /api/admin/auth/username`
+
+| 项目 | 说明 |
+| --- | --- |
+| 请求体 | `{ "newUsername": "new-name" }`，3-32 位，仅允许字母、数字、下划线与中划线 |
+| 成功响应 | `data` = `{ accessToken, tokenType, expiresIn, user }`；`user` 含最新的 `username` |
+| 格式非法 | HTTP 400，`code` = 40000，`data.newUsername` 给出字段级原因 |
+| 用户名冲突 | HTTP 409，`code` = 40902（`USERNAME_CONFLICT`），`message` = 「用户名已存在」 |
+
+`PUT /api/admin/auth/password`（沿用既有接口）
+
+| 项目 | 说明 |
+| --- | --- |
+| 请求体 | `{ "oldPassword": "...", "newPassword": "..." }` |
+| 成功响应 | `data` = `{ accessToken, tokenType, expiresIn }`（不含 `user`） |
+| 原密码错误 | HTTP 400，`code` = 40002（`UNAUTHORIZED_PASSWORD`），`message` = 「原密码错误」 |
+| 新密码不合规 | HTTP 400，`code` = 40000，`data.newPassword` 给出字段级原因 |
+
+会话同步要点：
+
+- JWT 的 subject 就是用户名，因此**改完用户名必须换发新令牌**。两个接口的响应都带 `accessToken`，前端通过 `stores/auth.js` 的 `applySession()` 覆盖本地 token 与用户信息，侧边栏 / 顶栏显示的用户名随之更新。
+- 前端手写校验：原密码必填、新密码 ≥ 8 位且同时包含字母与数字、两次密码一致、用户名需匹配 `^[a-zA-Z0-9_-]{3,32}$` 且不能与当前用户名相同。
+- 提交失败时按 `fieldErrors` 或信封 `message` 行内提示，**不会清空「原密码」输入框**，方便直接重试；密码修改成功后才清空三个字段。
 
 ## 设计备注
 

@@ -4,6 +4,8 @@ import com.example.hrsblog.common.ApiResponse;
 import com.example.hrsblog.common.ErrorCode;
 import com.example.hrsblog.common.PageResponse;
 import com.example.hrsblog.dto.AdminArticleSummaryResponse;
+import com.example.hrsblog.dto.ArticleBatchDeleteRequest;
+import com.example.hrsblog.dto.ArticleBatchDeleteResponse;
 import com.example.hrsblog.dto.ArticleCreateRequest;
 import com.example.hrsblog.dto.ArticleDetailResponse;
 import com.example.hrsblog.dto.ArticleQuery;
@@ -31,7 +33,8 @@ import org.springframework.web.bind.annotation.RestController;
  *   <li>{@code GET /api/admin/articles}：分页列表（草稿 + 已发布，支持 status 筛选）；</li>
  *   <li>{@code GET /api/admin/articles/{id}}：详情（编辑表单取数）；</li>
  *   <li>{@code PUT /api/admin/articles/{id}}：全量更新；</li>
- *   <li>{@code DELETE /api/admin/articles/{id}}：软删除。</li>
+ *   <li>{@code DELETE /api/admin/articles/{id}}：软删除；</li>
+ *   <li>{@code POST /api/admin/articles/batch-delete}：批量软删除（允许部分成功）。</li>
  * </ul>
  */
 @RestController
@@ -45,6 +48,16 @@ public class AdminArticleController {
     public ResponseEntity<ApiResponse<ArticleDetailResponse>> create(@Valid @RequestBody ArticleCreateRequest request) {
         ArticleDetailResponse created = articleService.create(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(created));
+    }
+
+    /**
+     * 批量软删除文章：逐篇尝试删除，成功数与失败明细一并返回。
+     *
+     * <p>路径 {@code /batch-delete} 与 {@code /{id}} 分属不同 HTTP 方法，不会互相遮蔽。
+     */
+    @PostMapping("/batch-delete")
+    public ApiResponse<ArticleBatchDeleteResponse> batchDelete(@Valid @RequestBody ArticleBatchDeleteRequest request) {
+        return ApiResponse.ok(articleService.deleteArticles(request.ids()));
     }
 
     @GetMapping

@@ -35,6 +35,8 @@ public enum ErrorCode {
     /** slug 唯一约束冲突（应用层预检 + 数据库约束兜底）。 */
     SLUG_CONFLICT(40900, HttpStatus.CONFLICT, "文章标识（slug）已存在"),
     DATA_CONFLICT(40901, HttpStatus.CONFLICT, "数据冲突，请检查唯一字段"),
+    /** 用户名唯一约束冲突（修改用户名时命中其他账号）。 */
+    USERNAME_CONFLICT(40902, HttpStatus.CONFLICT, "用户名已存在"),
 
     ASSET_TOO_LARGE(41300, HttpStatus.CONTENT_TOO_LARGE, "文件大小超过限制"),
     ASSET_TYPE_NOT_ALLOWED(41500, HttpStatus.UNSUPPORTED_MEDIA_TYPE, "不支持的文件类型"),

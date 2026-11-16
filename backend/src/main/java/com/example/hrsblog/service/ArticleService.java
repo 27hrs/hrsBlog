@@ -7,6 +7,7 @@ import com.example.hrsblog.common.PageResponse;
 import com.example.hrsblog.domain.Article;
 import com.example.hrsblog.domain.Tag;
 import com.example.hrsblog.dto.AdminArticleSummaryResponse;
+import com.example.hrsblog.dto.ArticleBatchDeleteResponse;
 import com.example.hrsblog.dto.ArticleCreateRequest;
 import com.example.hrsblog.dto.ArticleDetailResponse;
 import com.example.hrsblog.dto.ArticleQuery;
@@ -28,6 +29,7 @@ import org.springframework.util.StringUtils;
 
 import java.text.Normalizer;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -184,6 +186,56 @@ public class ArticleService {
     public void deleteArticle(Long id) {
         Article article = articleRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ARTICLE_NOT_FOUND));
+        softDelete(article);
+    }
+
+    /**
+     * 管理端批量软删除：逐篇尝试删除，允许部分成功。
+     *
+     * <p>语义约定：
+     * <ul>
+     *   <li>id 去重，保留首次出现的顺序（{@code totalCount} 按去重后的数量计）；</li>
+     *   <li>一次查询取出全部存在的文章（{@code findAllById}），避免逐个 findById 的 N+1；</li>
+     *   <li>单篇失败（例如文章不存在）只记入 {@code failed} 列表并继续处理后续 id，
+     *       绝不抛出异常——异常会回滚整个事务，把已经成功的删除一并撤销。</li>
+     * </ul>
+     *
+     * @param ids 待删除的文章主键列表，允许重复与不存在的 id
+     * @return 批量删除结果（总数、成功数、失败明细）
+     */
+    @Transactional
+    public ArticleBatchDeleteResponse deleteArticles(List<Long> ids) {
+        Set<Long> distinctIds = new LinkedHashSet<>(ids);
+        Map<Long, Article> articles = new LinkedHashMap<>();
+        for (Article article : articleRepository.findAllById(distinctIds)) {
+            articles.put(article.getId(), article);
+        }
+
+        List<ArticleBatchDeleteResponse.FailedItem> failed = new ArrayList<>();
+        int successCount = 0;
+        for (Long id : distinctIds) {
+            Article article = articles.get(id);
+            if (article == null) {
+                failed.add(new ArticleBatchDeleteResponse.FailedItem(id,
+                        ErrorCode.ARTICLE_NOT_FOUND.code(), ErrorCode.ARTICLE_NOT_FOUND.message()));
+                continue;
+            }
+            softDelete(article);
+            successCount++;
+        }
+
+        log.info("批量删除文章完成 total={} success={} failed={}",
+                distinctIds.size(), successCount, failed.size());
+        return new ArticleBatchDeleteResponse(distinctIds.size(), successCount, List.copyOf(failed));
+    }
+
+    /**
+     * 软删除单篇文章：写入 deleted_at 并改写 slug 释放唯一键。
+     *
+     * @param article 待删除的文章实体（调用方保证其存在且未删除）
+     */
+    private void softDelete(Article article) {
+        Long id = article.getId();
         String originalSlug = article.getSlug();
         article.setDeletedAt(LocalDateTime.now());
         article.setSlug(releasedSlug(originalSlug, id));
