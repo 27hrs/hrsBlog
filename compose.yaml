@@ -29,6 +29,8 @@ services:
       STORAGE_LOCAL_DIR: /app/storage/assets
       STORAGE_PUBLIC_BASE_URL: ${STORAGE_PUBLIC_BASE_URL:-}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:27080,http://localhost:27081}
+      # PROXY protocol：留空=禁用（默认）；v1/v2=启用
+      PROXY_PROTOCOL_VERSION: ${PROXY_PROTOCOL_VERSION:-}
     volumes:
       - hrsblog-storage:/app/storage
 

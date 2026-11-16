@@ -53,9 +53,25 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
+        <!--
+            内嵌 Servlet 容器使用 Jetty 而不是 Tomcat：
+            Tomcat 不支持 PROXY protocol，而 Jetty 12 的 ProxyConnectionFactory
+            能按 TCP 流首字节自动探测 v1/v2 头，未携带 PROXY 头的普通 HTTP 连接
+            自动回退到 HTTP 连接工厂（deploy.sh 的健康检查直连因此不受影响）。
+        -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webmvc</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-tomcat</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-jetty</artifactId>
         </dependency>
 
         <!-- JWT：api 编译期可见，impl/jackson 仅运行期需要 -->
@@ -112,6 +128,13 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webmvc-test</artifactId>
             <scope>test</scope>
+            <exclusions>
+                <!-- 与主依赖保持一致：测试期同样不使用 Tomcat，避免它被传递引入 -->
+                <exclusion>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-tomcat</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <!--
             集成测试内存数据库（仅 test 作用域，不会进入生产制品）。

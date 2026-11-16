@@ -45,6 +45,8 @@ hrsblog:
     allowed-types: jpg,jpeg,png,webp,gif
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:27080,http://localhost:27081}
+  transport:
+    proxy-protocol-version: ${PROXY_PROTOCOL_VERSION:}
   admin:
     # 可选：首次启动时按环境变量创建管理员（表内已存在管理员时不做任何事）
     bootstrap-username: user

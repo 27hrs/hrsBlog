@@ -31,6 +31,7 @@ services:
       STORAGE_PUBLIC_BASE_URL: ${STORAGE_PUBLIC_BASE_URL:-}
       STORAGE_LOCAL_DIR: /app/storage/assets
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?CORS_ALLOWED_ORIGINS is required}
+      PROXY_PROTOCOL_VERSION: ${PROXY_PROTOCOL_VERSION:-}
     volumes:
       # 命名卷首次创建会继承镜像内 /app/storage 的属主（app 用户），无需手工 chown
       - hrsblog-storage:/app/storage
