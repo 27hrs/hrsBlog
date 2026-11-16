@@ -1,6 +1,6 @@
 ---
 layout: home
-title: HrsBlog · 保持好奇，持续记录
+title: 27hrs的小站
 titleTemplate: false
-description: 一个关于代码、设计与日常观察的个人数字花园。记录正在学习的事，也保存值得回看的过程。
+description: 欢迎来到27hrs的窝
 ---
