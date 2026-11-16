@@ -17,6 +17,9 @@ public interface ArticleRepository extends JpaRepository<Article, Long> {
 
     boolean existsBySlug(String slug);
 
+    /** 更新文章时预检 slug 冲突（排除自身 id）。 */
+    boolean existsBySlugAndIdNot(String slug, Long id);
+
     Optional<Article> findBySlug(String slug);
 
     /** 访客详情：只有 PUBLISHED 才可能命中。 */

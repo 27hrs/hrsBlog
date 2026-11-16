@@ -85,7 +85,12 @@ export async function tryAdminArticleCollection(query = {}) {
   }
 }
 
-/** Planned admin update endpoint; surfaces a normal ApiError until backend lands. */
+/** 管理端文章详情（编辑表单取数）：文章不存在或已删除时抛 404 ApiError。 */
+export function getAdminArticle(id) {
+  return request(`/admin/articles/${encodeURIComponent(id)}`, { silent: true })
+}
+
+/** 管理端更新文章：全量字段覆盖，409 为 slug 冲突，404 为文章不存在/已删除。 */
 export function updateArticle(id, draft) {
   return request(`/admin/articles/${id}`, {
     method: 'PUT',

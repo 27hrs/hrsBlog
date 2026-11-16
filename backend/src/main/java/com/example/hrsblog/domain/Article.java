@@ -15,16 +15,25 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.ColumnDefault;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.time.LocalDateTime;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+/**
+ * 博客文章实体。
+ *
+ * <p>软删除策略：删除不物理移除行，而是写入 {@code deletedAt} 时间戳并释放 slug；
+ * {@code @SQLRestriction("deleted_at IS NULL")} 保证所有派生查询自动排除已删除文章，
+ * 访客端与管理端均不可见，无需在各查询方法上重复过滤条件。
+ */
 @Getter
 @Setter
 @NoArgsConstructor
 @Entity
 @Table(name = "article")
+@SQLRestriction("deleted_at IS NULL")
 public class Article {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -54,6 +63,10 @@ public class Article {
 
     @Column(name = "published_at")
     private LocalDateTime publishedAt;
+
+    /** 软删除时间戳：非 NULL 表示已删除；由 @SQLRestriction 从所有查询中过滤。 */
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
 
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     @ColumnDefault("CURRENT_TIMESTAMP(3)")

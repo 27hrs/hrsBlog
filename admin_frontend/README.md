@@ -97,16 +97,16 @@ router + guard
 
 - `POST /api/admin/auth/login`
 - `PUT /api/admin/auth/password`
-- `POST /api/admin/articles`（只支持新建，无更新/删除/列表）
+- `POST /api/admin/articles`、`GET /api/admin/articles`、`GET /api/admin/articles/{id}`、`PUT /api/admin/articles/{id}`、`DELETE /api/admin/articles/{id}`（列表 / 详情 / 更新 / 软删除均已提供）
 - `GET /api/admin/assets`、`POST /api/admin/assets`、`DELETE /api/admin/assets/{id}`
 
 因此前端做了明确、可移除的降级：
 
 | 能力 | 当前行为 |
 | --- | --- |
-| 管理文章列表 | 先探测规划中的 `GET /api/admin/articles`；不可用时回退为「公开文章接口 + 本机草稿缓存」 |
+| 管理文章列表 | `GET /api/admin/articles`（草稿 + 已发布，串行翻页拉全量）；接口不可用时回退为「公开文章接口 + 本机草稿缓存」 |
 | 草稿 | 通过现有 `POST /api/admin/articles` 新建成功，并把详情缓存到本机以支持列表展示 |
-| 文章更新/删除 | 后端未提供；编辑页说明「保存草稿后无法再次编辑」，列表提供复用本机内容新建副本 |
+| 文章更新/删除 | `PUT` / `DELETE /api/admin/articles/{id}`：列表提供编辑与删除入口，删除有二次确认弹窗与加载态，成功后自动刷新列表（末页删空自动回退页码），失败按接口返回的 message 展示；接口不可用时回退为复用本机内容新建副本 |
 | 分类/置顶/推荐/可见性/定时 | 本机 metadata，会显示「本地」标记；不伪造后端持久化 |
 | 统计/评论/访客 | 后端无接口；文章数为真实接口数据，评论/访客显示「—」，趋势图在开发环境使用明确标注的预览数据 |
 | 站点设置 | 先探测规划接口，不可用时保存本机并明确提示 |

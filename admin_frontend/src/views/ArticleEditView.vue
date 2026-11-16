@@ -6,7 +6,7 @@ import 'md-editor-v3/lib/style.css'
 import AppIcon from '@/components/common/AppIcon.vue'
 import AppModal from '@/components/common/AppModal.vue'
 import ArticleSettingsPanel from '@/components/editor/ArticleSettingsPanel.vue'
-import { createArticle, getPublishedArticle } from '@/api/articles.js'
+import { createArticle, getAdminArticle, getPublishedArticle, updateArticle } from '@/api/articles.js'
 import { getLocalArticle, rememberArticle } from '@/services/localLibrary.js'
 import { useArticleDraftStore } from '@/stores/articleDraft.js'
 import { useThemeStore } from '@/stores/theme.js'
@@ -59,11 +59,17 @@ const isPublishing = computed(() => savingAction.value === 'publish')
 const charCount = computed(() => draft.form.content.length)
 const titleLength = computed(() => draft.form.title.length)
 const hasScheduled = computed(() => Boolean(draft.form.scheduledAt))
+const editing = computed(() => Boolean(draft.sourceId))
+
+const editingId = computed(() => {
+  const id = Number(route.params.id)
+  return Number.isInteger(id) && id > 0 ? id : null
+})
 
 const statusLabel = computed(() => {
-  if (draft.form.status === 'PUBLISHED') return '已就绪'
+  if (draft.form.status === 'PUBLISHED') return editing.value ? '已发布' : '已就绪'
   if (hasScheduled.value) return '计划草稿'
-  return '新文章'
+  return editing.value ? '草稿' : '新文章'
 })
 
 function clearError(key) {
@@ -129,9 +135,31 @@ async function hydrateSource() {
   }
 }
 
+/** 编辑模式：按路由参数加载已有文章填充表单（管理端详情接口）。 */
+async function loadForEdit(id) {
+  initializing.value = true
+  try {
+    const article = await getAdminArticle(id)
+    draft.hydrateFromArticle(article, { isEditing: true })
+  } catch (error) {
+    if (error.status === 404) {
+      toast.error('文章不存在或已被删除')
+    } else {
+      toast.error(error.message || '载入文章失败')
+    }
+    await router.replace({ name: 'article-list' })
+  } finally {
+    initializing.value = false
+  }
+}
+
 onMounted(async () => {
   draft.reset()
-  await hydrateSource()
+  if (editingId.value) {
+    await loadForEdit(editingId.value)
+  } else {
+    await hydrateSource()
+  }
 })
 
 function regenerateSlug() {
@@ -166,17 +194,33 @@ async function performSave(status) {
 
   savingAction.value = status === 'DRAFT' ? 'draft' : 'publish'
   try {
-    const created = await createArticle(draft.toApiPayload(status))
-    rememberArticle(created, {
+    const payload = draft.toApiPayload(status)
+    const saved = editing.value
+      ? await updateArticle(draft.sourceId, payload)
+      : await createArticle(payload)
+    rememberArticle(saved, {
       ...draft.metadata(),
       scheduledAt: status === 'DRAFT' ? draft.form.scheduledAt : '',
     })
-    toast.success(status === 'PUBLISHED' ? '文章已发布' : '草稿已保存')
+    toast.success(
+      editing.value
+        ? status === 'PUBLISHED'
+          ? '文章已更新并发布'
+          : '文章已保存'
+        : status === 'PUBLISHED'
+          ? '文章已发布'
+          : '草稿已保存',
+    )
     await router.push({
       name: 'article-list',
       query: { status: status === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT' },
     })
   } catch (error) {
+    if (error.status === 404) {
+      toast.error('文章不存在或已被删除，无法保存')
+      await router.replace({ name: 'article-list' })
+      return
+    }
     if (error.fieldErrors) {
       Object.entries(error.fieldErrors).forEach(([key, message]) => {
         if (['title', 'slug', 'summary', 'content', 'coverUrl', 'tags'].includes(key)) {
@@ -236,7 +280,7 @@ function keepAsDraft() {
           文章管理
         </RouterLink>
         <div class="article-editor__title-row">
-          <h1 class="article-editor__title">投放新文章</h1>
+          <h1 class="article-editor__title">{{ editing ? '编辑文章' : '投放新文章' }}</h1>
           <span class="editor-status"><span class="editor-status__dot" />{{ statusLabel }}</span>
         </div>
         <p class="article-editor__lead">把散落的念头，整理成一篇可以抵达读者的文章。</p>
@@ -251,7 +295,7 @@ function keepAsDraft() {
         >
           <span v-if="isDraftSaving" class="btn__spinner" />
           <AppIcon v-else name="save" :size="15" />
-          保存草稿
+          {{ isDraftSaving ? '保存中…' : editing ? '存为草稿' : '保存草稿' }}
         </button>
         <button
           class="btn btn--primary"
@@ -261,7 +305,7 @@ function keepAsDraft() {
         >
           <span v-if="isPublishing" class="btn__spinner" />
           <AppIcon v-else name="send" :size="14" />
-          {{ isPublishing ? '发布中…' : '发布文章' }}
+          {{ isPublishing ? (editing ? '更新中…' : '发布中…') : editing ? '保存并发布' : '发布文章' }}
         </button>
       </div>
     </header>
@@ -369,7 +413,11 @@ function keepAsDraft() {
         <div class="editor-footnote">
           <span>
             <AppIcon name="info" :size="12" />
-            保存草稿后无法再次编辑（当前后端尚未提供更新接口），可在文章管理中复用并新建。
+            {{
+              editing
+                ? '编辑会直接更新服务器上的文章；slug 冲突或校验失败时不会覆盖原有内容。'
+                : '文章保存后可随时回到文章管理中继续编辑或删除。'
+            }}
           </span>
           <span class="mono">MD / UTF-8</span>
         </div>

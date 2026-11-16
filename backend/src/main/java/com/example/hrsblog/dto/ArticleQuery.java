@@ -8,10 +8,13 @@ import lombok.Getter;
 import lombok.Setter;
 
 /**
- * 访客文章列表查询参数（用于 {@code @ModelAttribute} 绑定 + Bean Validation）。
+ * 文章列表查询参数（用于 {@code @ModelAttribute} 绑定 + Bean Validation）。
  *
  * <p>{@code size} 上限 50，防止匿名调用方一次拉取过多数据；{@code tag} 只接受标签 slug。
- * 排序不开放给调用方，由服务端固定按 {@code published_at} 倒序，避免通过排序参数做探测。
+ * 排序不开放给调用方，由服务端固定（访客按 {@code published_at}、管理端按 {@code updated_at} 倒序）。
+ *
+ * <p>{@code status} 仅管理端接口使用（可选，DRAFT / PUBLISHED）；访客端固定查询
+ * PUBLISHED，服务层不读取该字段。
  */
 @Getter
 @Setter
@@ -28,4 +31,8 @@ public class ArticleQuery {
     @Pattern(regexp = "^[a-z0-9]+(?:-[a-z0-9]+)*$",
             message = "tag 只能由小写字母、数字和单个连字符组成")
     private String tag;
+
+    /** 可选状态筛选（仅管理端）：DRAFT 或 PUBLISHED。 */
+    @Pattern(regexp = "DRAFT|PUBLISHED", message = "status 只能取 DRAFT 或 PUBLISHED")
+    private String status;
 }

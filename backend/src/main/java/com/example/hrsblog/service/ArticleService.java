@@ -6,10 +6,12 @@ import com.example.hrsblog.common.HashUtils;
 import com.example.hrsblog.common.PageResponse;
 import com.example.hrsblog.domain.Article;
 import com.example.hrsblog.domain.Tag;
+import com.example.hrsblog.dto.AdminArticleSummaryResponse;
 import com.example.hrsblog.dto.ArticleCreateRequest;
 import com.example.hrsblog.dto.ArticleDetailResponse;
 import com.example.hrsblog.dto.ArticleQuery;
 import com.example.hrsblog.dto.ArticleSummaryResponse;
+import com.example.hrsblog.dto.ArticleUpdateRequest;
 import com.example.hrsblog.dto.TagResponse;
 import com.example.hrsblog.repository.ArticleRepository;
 import com.example.hrsblog.repository.TagRepository;
@@ -46,6 +48,8 @@ public class ArticleService {
 
     private static final String DEFAULT_CONTENT_FORMAT = "MARKDOWN";
     private static final int MAX_TAGS = 10;
+    /** 与 article 表 slug 列长度（VARCHAR(220)）一致。 */
+    private static final int SLUG_MAX_LENGTH = 220;
 
     private final ArticleRepository articleRepository;
     private final TagRepository tagRepository;
@@ -110,6 +114,90 @@ public class ArticleService {
         return articleRepository.findByStatusAndSlug(Article.ArticleStatus.PUBLISHED, slug)
                 .map(this::toDetail)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ARTICLE_NOT_FOUND));
+    }
+
+    /** 管理端文章分页：草稿与已发布均可见（已删除由 @SQLRestriction 排除），按 updated_at 倒序，可选 status 筛选。 */
+    @Transactional(readOnly = true)
+    public PageResponse<AdminArticleSummaryResponse> listForAdmin(ArticleQuery query) {
+        Pageable pageable = PageRequest.of(query.getPage(), query.getSize(),
+                Sort.by(Sort.Order.desc("updatedAt"), Sort.Order.desc("id")));
+        Page<Article> page = StringUtils.hasText(query.getStatus())
+                ? articleRepository.findByStatus(Article.ArticleStatus.valueOf(query.getStatus()), pageable)
+                : articleRepository.findAll(pageable);
+        return PageResponse.of(page, this::toAdminSummary);
+    }
+
+    /** 管理端文章详情：草稿与已发布均可见，不存在或已删除返回 40401。 */
+    @Transactional(readOnly = true)
+    public ArticleDetailResponse getForAdmin(Long id) {
+        return articleRepository.findById(id)
+                .map(this::toDetail)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ARTICLE_NOT_FOUND));
+    }
+
+    /** 管理端更新文章：全量字段覆盖；slug 冲突预检排除自身；首次发布回填 published_at。 */
+    @Transactional
+    public ArticleDetailResponse updateArticle(Long id, ArticleUpdateRequest request) {
+        Article article = articleRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ARTICLE_NOT_FOUND));
+
+        String slug = request.slug().trim();
+        if (!slug.equals(article.getSlug()) && articleRepository.existsBySlugAndIdNot(slug, id)) {
+            throw new BusinessException(ErrorCode.SLUG_CONFLICT);
+        }
+
+        article.setTitle(request.title().trim());
+        article.setSlug(slug);
+        article.setSummary(trimToNull(request.summary()));
+        article.setContent(request.content());
+        article.setContentFormat(StringUtils.hasText(request.contentFormat())
+                ? request.contentFormat().trim().toUpperCase(Locale.ROOT)
+                : DEFAULT_CONTENT_FORMAT);
+        article.setCoverUrl(trimToNull(request.coverUrl()));
+
+        Article.ArticleStatus status = Article.ArticleStatus.valueOf(request.status());
+        article.setStatus(status);
+        // 首次发布回填发布时间；保持 PUBLISHED 或改回 DRAFT 均保留原发布时间
+        if (status == Article.ArticleStatus.PUBLISHED && article.getPublishedAt() == null) {
+            article.setPublishedAt(LocalDateTime.now());
+        }
+        article.setTags(resolveTags(request.tags()));
+
+        Article saved;
+        try {
+            saved = articleRepository.saveAndFlush(article);
+        } catch (DataIntegrityViolationException ex) {
+            // 并发更新出相同 slug 时由数据库唯一索引兜底
+            throw new BusinessException(ErrorCode.SLUG_CONFLICT, ErrorCode.SLUG_CONFLICT.message(), ex);
+        }
+        // updated_at 由数据库 ON UPDATE 生成，refresh 后回填到响应
+        entityManager.refresh(saved);
+        log.info("文章已更新 articleId={} slug={} status={}", saved.getId(), saved.getSlug(), saved.getStatus());
+        return toDetail(saved);
+    }
+
+    /**
+     * 管理端软删除：写入 deleted_at 并改写 slug（{slug}-deleted-{id}）释放唯一键，
+     * 避免阻塞新文章复用同名 slug；article_tag 关联随数据行保留。
+     */
+    @Transactional
+    public void deleteArticle(Long id) {
+        Article article = articleRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ARTICLE_NOT_FOUND));
+        String originalSlug = article.getSlug();
+        article.setDeletedAt(LocalDateTime.now());
+        article.setSlug(releasedSlug(originalSlug, id));
+        articleRepository.saveAndFlush(article);
+        log.info("文章已删除（软删除）articleId={} slug={}", id, originalSlug);
+    }
+
+    /** 释放 slug：追加 -deleted-{id} 标记并截断到列长度以内。 */
+    private String releasedSlug(String slug, Long id) {
+        String suffix = "-deleted-" + id;
+        String base = slug.length() > SLUG_MAX_LENGTH - suffix.length()
+                ? slug.substring(0, SLUG_MAX_LENGTH - suffix.length())
+                : slug;
+        return base + suffix;
     }
 
     private Set<Tag> resolveTags(Set<String> requestedTags) {
@@ -180,6 +268,21 @@ public class ArticleService {
                 article.getSummary(),
                 article.getCoverUrl(),
                 article.getPublishedAt(),
+                toTagResponses(article));
+    }
+
+    private AdminArticleSummaryResponse toAdminSummary(Article article) {
+        return new AdminArticleSummaryResponse(
+                article.getId(),
+                article.getTitle(),
+                article.getSlug(),
+                article.getSummary(),
+                article.getContentFormat(),
+                article.getCoverUrl(),
+                article.getStatus().name(),
+                article.getPublishedAt(),
+                article.getCreatedAt(),
+                article.getUpdatedAt(),
                 toTagResponses(article));
     }
 

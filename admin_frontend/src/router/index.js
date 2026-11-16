@@ -36,6 +36,12 @@ const routes = [
         meta: { title: '文章投放', section: '内容', requiresAuth: true },
       },
       {
+        path: 'articles/:id/edit',
+        name: 'article-edit',
+        component: () => import('@/views/ArticleEditView.vue'),
+        meta: { title: '编辑文章', section: '内容', requiresAuth: true },
+      },
+      {
         path: 'settings',
         name: 'settings',
         component: () => import('@/views/SettingsView.vue'),

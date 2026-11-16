@@ -7,6 +7,7 @@ import AppPagination from '@/components/common/AppPagination.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import AppModal from '@/components/common/AppModal.vue'
 import { resolveAssetUrl } from '@/api/client.js'
+import { deleteArticle } from '@/api/articles.js'
 import { loadArticleWorkspace, managementStatus, publishedUrl } from '@/services/articleAdmin.js'
 import { removeLocalArticle } from '@/services/localLibrary.js'
 import { ARTICLE_CATEGORIES, categoryLabel, inferCategoryFromTags } from '@/data/categories.js'
@@ -171,15 +172,24 @@ const removalCopy = computed(() => {
     return {
       title: `移除 ${removalItems.value.length} 篇本地草稿？`,
       description:
-        '这些草稿只存在于当前浏览器。移除后列表中将不再显示；当前后端未提供删除接口，服务器上的草稿记录不会被删除。',
+        '这些草稿只存在于当前浏览器。移除后列表中将不再显示；服务器上的记录不会被删除。',
+      note: '此操作只影响当前浏览器中的文章列表，不会调用后端删除接口。',
       confirm: '移除本地记录',
     }
   }
   const item = removalItems.value[0]
+  if (item?.id) {
+    return {
+      title: `删除《${item?.title || '这篇文章'}》？`,
+      description: '文章将从前台与管理列表中移除（软删除）。删除后无法在界面中恢复，请谨慎确认。',
+      note: '此操作会调用后端删除接口，删除服务器上的文章（软删除，保留数据库记录）。',
+      confirm: '删除文章',
+    }
+  }
   return {
     title: `移除《${item?.title || '这篇草稿'}》？`,
-    description:
-      '这篇草稿的本地记录将被移除，且无法从当前浏览器恢复。当前后端未提供删除接口，服务器上的草稿记录不会被删除。',
+    description: '这篇草稿的本地记录将被移除，且无法从当前浏览器恢复；服务器上的记录不会被删除。',
+    note: '此操作只影响当前浏览器中的文章列表，不会调用后端删除接口。',
     confirm: '移除本地记录',
   }
 })
@@ -324,7 +334,7 @@ function reuseArticle(article) {
 }
 
 function askRemove(article) {
-  if (!isLocalDraft(article)) return
+  if (!isLocalDraft(article) && !article.id) return
   removalMode.value = 'single'
   removalItems.value = [article]
   removalOpen.value = true
@@ -337,21 +347,47 @@ function askRemoveSelected() {
   removalOpen.value = true
 }
 
-function confirmRemove() {
-  if (!removalItems.value.length) return
+async function confirmRemove() {
+  if (!removalItems.value.length || removing.value) return
   removing.value = true
+
+  // 有 id 的为服务端文章（调用后端删除接口），无 id 的为本地草稿（仅清理本机记录）
+  const serverItems = removalItems.value.filter((article) => Boolean(article.id))
+  const localItems = removalItems.value.filter((article) => !article.id)
+
   try {
-    removalItems.value.forEach((article) => {
-      removeLocalArticle({ id: article.id, slug: article.slug })
-    })
-    const removedKeys = new Set(removalItems.value.map((article) => articleKey(article)))
-    articles.value = articles.value.filter((article) => !removedKeys.has(articleKey(article)))
-    selected.value = selected.value.filter((key) => !removedKeys.has(key))
-    if (page.value > Math.ceil(filtered.value.length / pageSize.value)) {
-      page.value = Math.max(1, Math.ceil(filtered.value.length / pageSize.value))
+    for (const article of serverItems) {
+      await deleteArticle(article.id)
     }
-    toast.success(removalMode.value === 'bulk' ? '本地草稿已移除' : '本地草稿记录已移除')
+
+    if (localItems.length) {
+      localItems.forEach((article) => {
+        removeLocalArticle({ id: article.id, slug: article.slug })
+      })
+      const removedKeys = new Set(removalItems.value.map((article) => articleKey(article)))
+      articles.value = articles.value.filter((article) => !removedKeys.has(articleKey(article)))
+      selected.value = selected.value.filter((key) => !removedKeys.has(key))
+    }
+
     removalOpen.value = false
+
+    if (serverItems.length) {
+      toast.success(serverItems.length > 1 ? `已删除 ${serverItems.length} 篇文章` : '文章已删除')
+      // 删除成功后重新拉取列表，并在末页删空时回退页码
+      await load({ silent: true })
+      const maxPage = Math.max(1, Math.ceil(filtered.value.length / pageSize.value))
+      if (page.value > maxPage) {
+        page.value = maxPage
+      }
+    } else {
+      toast.success(removalMode.value === 'bulk' ? '本地草稿已移除' : '本地草稿记录已移除')
+    }
+  } catch (error) {
+    toast.error(error.message || '删除失败，请稍后重试')
+    if (serverItems.length) {
+      // 批量部分成功时同步一次列表，保持界面与服务端一致
+      await load({ silent: true })
+    }
   } finally {
     removing.value = false
   }
@@ -598,6 +634,16 @@ const emptyDescription = computed(() => {
               <AppIcon name="link" :size="14" />
             </button>
             <button
+              v-if="row.id"
+              class="row-action"
+              type="button"
+              title="编辑文章"
+              aria-label="编辑文章"
+              @click="router.push({ name: 'article-edit', params: { id: row.id } })"
+            >
+              <AppIcon name="edit" :size="14" />
+            </button>
+            <button
               v-if="row.status === 'PUBLISHED' || isLocalDraft(row)"
               class="row-action"
               type="button"
@@ -608,11 +654,11 @@ const emptyDescription = computed(() => {
               <AppIcon name="copy" :size="14" />
             </button>
             <button
-              v-if="isLocalDraft(row)"
+              v-if="isLocalDraft(row) || Boolean(row.id)"
               class="row-action row-action--danger"
               type="button"
-              title="移除本地草稿"
-              aria-label="移除本地草稿"
+              :title="isLocalDraft(row) ? '移除本地草稿' : '删除文章'"
+              :aria-label="isLocalDraft(row) ? '移除本地草稿' : '删除文章'"
               @click="askRemove(row)"
             >
               <AppIcon name="trash" :size="14" />
@@ -659,7 +705,11 @@ const emptyDescription = computed(() => {
     <p class="list-footnote">
       <AppIcon name="info" :size="12" />
       <span>
-        当前后端仅提供文章新建接口，公开文章来自访客接口，草稿保存在本机浏览器。分类、置顶等组织字段同样为本地视图设置。
+        {{
+          source === 'admin-api'
+            ? '文章与草稿来自管理端接口，支持在线编辑与删除（软删除）；分类、置顶等组织字段为本机视图设置。'
+            : '后端管理端接口暂不可用，公开文章来自访客接口，草稿保存在本机浏览器。分类、置顶等组织字段同样为本地视图设置。'
+        }}
       </span>
     </p>
 
@@ -671,7 +721,7 @@ const emptyDescription = computed(() => {
     >
       <div class="remove-modal__note">
         <AppIcon name="alert-triangle" :size="17" />
-        <span>此操作只影响当前浏览器中的文章列表，不会调用后端删除接口。</span>
+        <span>{{ removalCopy.note }}</span>
       </div>
       <template #footer>
         <button class="btn" type="button" @click="removalOpen = false">取消</button>
