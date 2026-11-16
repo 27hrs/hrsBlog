@@ -57,8 +57,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/admin/auth/login").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/visitors/**").permitAll()
                         .requestMatchers(HttpMethod.HEAD, "/api/visitors/**").permitAll()
-                        // 友链申请是唯一的匿名写接口：走 IP 限频，不返回联系方式
+                        // 匿名写接口：友链申请与留言提交，都走 IP 限频，且不返回联系方式
                         .requestMatchers(HttpMethod.POST, "/api/visitors/friend-links").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/visitors/guest-messages").permitAll()
                         .requestMatchers("/assets/**").permitAll()
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()

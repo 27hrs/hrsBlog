@@ -37,6 +37,7 @@ if (!existsSync(path.join(DIST, 'index.html'))) fail('缺少 dist/index.html')
 if (!existsSync(path.join(DIST, 'articles', 'index.html'))) fail('缺少文章列表 dist/articles/index.html')
 if (!existsSync(path.join(DIST, 'about.html'))) fail('缺少 dist/about.html')
 if (!existsSync(path.join(DIST, 'links', 'index.html'))) fail('缺少友链页 dist/links/index.html')
+if (!existsSync(path.join(DIST, 'guestbook', 'index.html'))) fail('缺少留言页 dist/guestbook/index.html')
 if (!existsSync(path.join(DIST, '404.html'))) fail('缺少 dist/404.html')
 
 for (const item of items) {
@@ -64,14 +65,15 @@ if (!existsSync(sitemapFile)) {
   const sitemap = read(sitemapFile)
   if (!sitemap.includes('/articles/')) fail('sitemap 中缺少文章列表')
   if (!sitemap.includes('/links/')) fail('sitemap 中缺少友链页')
+  if (!sitemap.includes('/guestbook/')) fail('sitemap 中缺少留言页')
 
   for (const item of items) {
     if (!sitemap.includes(item.url)) fail(`sitemap 中缺少 ${item.url}`)
   }
 
   const locations = [...sitemap.matchAll(/<loc>(.*?)<\/loc>/g)].map((match) => match[1])
-  // 首页 + 文章列表 + 关于 + 友链
-  const expectedLocations = items.length + 4
+  // 首页 + 文章列表 + 关于 + 友链 + 留言
+  const expectedLocations = items.length + 5
   if (locations.length !== expectedLocations) {
     fail(`sitemap 页面数量异常：${locations.length}，预期 ${expectedLocations}`)
   }
@@ -112,6 +114,35 @@ if (existsSync(linksFile)) {
   const linksHtml = read(linksFile)
   if (!linksHtml.includes(htmlEscape('友情链接'))) fail('友链页缺少标题：友情链接')
   if (!linksHtml.includes('申请友链')) fail('友链页缺少申请表单')
+}
+
+const guestbookFile = path.join(DIST, 'guestbook', 'index.html')
+if (existsSync(guestbookFile)) {
+  const guestbookHtml = read(guestbookFile)
+  if (!guestbookHtml.includes(htmlEscape('留言'))) fail('留言页缺少标题：留言')
+
+  // 留言板被后台关闭时，页面只展示「未开放」提示，不渲染提交表单。
+  const guestbookEnabled = readGuestbookEnabled()
+  if (guestbookEnabled) {
+    if (!guestbookHtml.includes('留下留言')) fail('留言页缺少提交表单')
+  } else if (!guestbookHtml.includes('留言板暂时没有开放')) {
+    fail('留言板关闭时，留言页缺少未开放提示')
+  }
+}
+
+/**
+ * 留言板开关取自构建期落盘的站点配置（与前台运行时读到的是同一份）。
+ */
+function readGuestbookEnabled() {
+  const settingsFile = path.join(ROOT, '.vitepress', 'data', 'site-settings.json')
+  if (!existsSync(settingsFile)) return false
+
+  try {
+    const payload = JSON.parse(read(settingsFile))
+    return payload?.siteConfig?.guestbook?.enabled === true
+  } catch {
+    return false
+  }
 }
 
 // 联系方式只属于站长，构建产物里不允许出现 contact 字段。

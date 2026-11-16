@@ -45,6 +45,10 @@ hrsblog:
     # 测试期把每日限额压到 2，便于验证限频分支
     daily-submit-limit: 2
     trust-forwarded-headers: true
+  guest-message:
+    # 测试期把每日限额压到 2，便于验证限频分支
+    daily-submit-limit: 2
+    trust-forwarded-headers: true
   admin:
     bootstrap-username: ""
     bootstrap-password: ""

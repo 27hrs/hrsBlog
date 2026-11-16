@@ -16,6 +16,9 @@ const icons = {
   'arrow-down': {
     paths: ['M12 4v15', 'm6 13 6 6 6-6'],
   },
+  refresh: {
+    paths: ['M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8', 'M21 3v5h-5'],
+  },
   menu: {
     paths: ['M4 7h16', 'M4 12h16', 'M4 17h16'],
   },

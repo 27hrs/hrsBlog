@@ -18,3 +18,13 @@ export {
   normalizeFriendLink,
   submitFriendLink,
 } from './friend-links.js'
+export {
+  GUEST_MESSAGE_LIMITS,
+  GUEST_MESSAGE_MAX_PAGE_SIZE,
+  buildGuestMessagePayload,
+  deriveAvatarUrl,
+  fetchGuestMessages,
+  normalizeGuestMessage,
+  normalizeGuestMessageReply,
+  submitGuestMessage,
+} from './guest-messages.js'

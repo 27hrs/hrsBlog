@@ -20,7 +20,13 @@ if (existsSync(SETTINGS_FILE)) {
   try {
     const payload = JSON.parse(readFileSync(SETTINGS_FILE, 'utf8'))
     if (payload?.siteConfig && typeof payload.siteConfig === 'object') {
-      effectiveSiteConfig = payload.siteConfig
+      // 落盘文件可能来自旧版本（缺少新增的 guestbook 配置块）：
+      // 用本地默认值补齐缺失字段，避免前台读到 undefined。
+      effectiveSiteConfig = {
+        ...siteConfig,
+        ...payload.siteConfig,
+        guestbook: { ...(siteConfig.guestbook || {}), ...(payload.siteConfig.guestbook || {}) },
+      }
     }
   } catch (error) {
     console.warn(`[config] site-settings.json 解析失败，使用本地默认配置: ${error.message}`)

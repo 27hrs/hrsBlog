@@ -24,7 +24,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
     /**
      * 匿名写接口的请求体上限：友链申请的合法报文（名称 100 + 地址 500×2 + 头像 500
-     * + 简介 500 + 联系方式 200）连同 JSON 开销仍远小于 16KB。
+     * + 简介 500 + 联系方式 200）与留言的合法报文（昵称 64 + 邮箱 255 + 正文 500）
+     * 连同 JSON 开销仍远小于 16KB。
      */
     private static final long MAX_ANONYMOUS_BODY_BYTES = 16 * 1024;
 
@@ -48,12 +49,12 @@ public class WebMvcConfig implements WebMvcConfigurer {
     }
 
     /**
-     * 公开的匿名写接口（友链申请）必须挡住超大请求体：
+     * 公开的匿名写接口（友链申请、留言提交）必须挡住超大请求体：
      * 拦截器在参数解析之前执行，超大的 JSON 不会被反序列化进内存。
      */
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(new RequestBodySizeInterceptor(MAX_ANONYMOUS_BODY_BYTES))
-                .addPathPatterns("/api/visitors/friend-links");
+                .addPathPatterns("/api/visitors/friend-links", "/api/visitors/guest-messages");
     }
 }

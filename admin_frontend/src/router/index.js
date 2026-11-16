@@ -48,6 +48,12 @@ const routes = [
         meta: { title: '友链管理', section: '内容', requiresAuth: true },
       },
       {
+        path: 'guest-messages',
+        name: 'guest-messages',
+        component: () => import('@/views/GuestbookView.vue'),
+        meta: { title: '留言管理', section: '内容', requiresAuth: true },
+      },
+      {
         path: 'settings',
         name: 'settings',
         component: () => import('@/views/SettingsView.vue'),

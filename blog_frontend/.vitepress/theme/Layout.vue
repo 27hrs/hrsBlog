@@ -9,6 +9,7 @@ import ArticleListView from './views/ArticleListView.vue'
 import ArticleView from './views/ArticleView.vue'
 import AboutView from './views/AboutView.vue'
 import LinksView from './views/LinksView.vue'
+import GuestbookView from './views/GuestbookView.vue'
 import SimplePage from './views/SimplePage.vue'
 import NotFoundView from './views/NotFoundView.vue'
 
@@ -36,6 +37,7 @@ const layout = computed(() => {
         <Content />
       </AboutView>
       <LinksView v-else-if="layout === 'links'" />
+      <GuestbookView v-else-if="layout === 'guestbook'" />
       <NotFoundView v-else-if="layout === 'notfound'" />
       <SimplePage v-else>
         <Content />

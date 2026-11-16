@@ -20,9 +20,9 @@ import java.util.Map;
  *       防止 {@code javascript:} 等协议注入。</li>
  * </ul>
  *
- * <p>公开性约定：basic / identity / appearance / seo 与 reading.friendLinks 会
- * 被博客前台消费，标记为公开；integrations（统计、webhook）与 advanced
- * 属于运维私密配置，不进入访客接口。
+ * <p>公开性约定：basic / identity / appearance / seo 与 reading.friendLinks /
+ * reading.enableGuestbook / reading.guestbookPageSize 会被博客前台消费，标记为公开；
+ * integrations（统计、webhook）与 advanced 属于运维私密配置，不进入访客接口。
  */
 public final class SiteSettingCatalog {
 
@@ -83,9 +83,9 @@ public final class SiteSettingCatalog {
                 "背景图遮罩强度（0-100，数值越大文字底越实）", 0d, 100d));
 
         // ── reading：阅读体验 ──
-        put(spec("enableComments", "reading", ValueType.BOOLEAN, false, ++order, "是否启用评论（后端暂无评论接口）"));
-        put(spec("commentModeration", "reading", ValueType.STRING, false, ++order, "评论审核策略 review/open", 16d));
         put(spec("friendLinks", "reading", ValueType.JSON, true, ++order, "友情链接 [{name,url}] 列表"));
+        put(spec("enableGuestbook", "reading", ValueType.BOOLEAN, true, ++order, "是否展示留言板入口"));
+        put(spec("guestbookPageSize", "reading", ValueType.NUMBER, true, ++order, "留言板每页数量", 1d, 50d));
 
         // ── seo：SEO 与分享（公开：构建期生成 head/sitemap/RSS 时消费） ──
         put(spec("titleTemplate", "seo", ValueType.STRING, true, ++order, "页面标题模板，:title 为占位符", 100d));

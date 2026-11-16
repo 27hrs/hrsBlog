@@ -38,6 +38,20 @@ export const siteConfig = {
     { label: '关于', link: '/about' },
   ],
 
+  /**
+   * 留言板配置。
+   *
+   * `enabled` 默认关闭：构建期读不到后台的 `enableGuestbook` 时保守回退为
+   * 「不展示留言入口」（访客直接访问 /guestbook/ 也只会看到未开放提示）。
+   * 后台打开开关并重新构建站点后，这里会被覆盖为 true，导航里也会多出「留言」入口。
+   */
+  guestbook: {
+    enabled: false,
+    pageSize: 10,
+    title: '留言',
+    lead: '路过就留一句话。我会一条条看完，也会尽量回复。',
+  },
+
   friendLinks: [
     { name: 'VitePress', url: 'https://vitepress.dev', description: '静态站点生成器' },
     { name: 'Vue.js', url: 'https://cn.vuejs.org', description: '渐进式 JavaScript 框架' },

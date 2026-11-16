@@ -30,6 +30,7 @@ public enum ErrorCode {
     ARTICLE_NOT_FOUND(40401, HttpStatus.NOT_FOUND, "文章不存在"),
     ASSET_NOT_FOUND(40402, HttpStatus.NOT_FOUND, "静态资源不存在"),
     FRIEND_LINK_NOT_FOUND(40403, HttpStatus.NOT_FOUND, "友链不存在"),
+    GUEST_MESSAGE_NOT_FOUND(40404, HttpStatus.NOT_FOUND, "留言不存在"),
 
     METHOD_NOT_ALLOWED(40500, HttpStatus.METHOD_NOT_ALLOWED, "请求方法不被支持"),
 
@@ -49,6 +50,8 @@ public enum ErrorCode {
 
     /** 友链申请超出当日限额（按 IP 统计）。 */
     FRIEND_LINK_RATE_LIMITED(42900, HttpStatus.TOO_MANY_REQUESTS, "提交过于频繁，请稍后再试"),
+    /** 留言提交超出当日限额（按 IP 统计）。 */
+    GUEST_MESSAGE_RATE_LIMITED(42901, HttpStatus.TOO_MANY_REQUESTS, "留言提交过于频繁，请稍后再试"),
 
     INTERNAL_ERROR(50000, HttpStatus.INTERNAL_SERVER_ERROR, "服务器内部错误"),
     STORAGE_ERROR(50001, HttpStatus.INTERNAL_SERVER_ERROR, "文件存储失败");

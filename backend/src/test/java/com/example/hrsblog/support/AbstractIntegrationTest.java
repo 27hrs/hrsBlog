@@ -4,10 +4,14 @@ import com.example.hrsblog.config.StorageProperties;
 import com.example.hrsblog.domain.AdminUser;
 import com.example.hrsblog.domain.Article;
 import com.example.hrsblog.domain.FriendLink;
+import com.example.hrsblog.domain.GuestMessage;
+import com.example.hrsblog.domain.MessageReply;
 import com.example.hrsblog.domain.Tag;
 import com.example.hrsblog.repository.AdminUserRepository;
 import com.example.hrsblog.repository.ArticleRepository;
 import com.example.hrsblog.repository.FriendLinkRepository;
+import com.example.hrsblog.repository.GuestMessageRepository;
+import com.example.hrsblog.repository.MessageReplyRepository;
 import com.example.hrsblog.repository.StaticAssetRepository;
 import com.example.hrsblog.repository.TagRepository;
 import com.example.hrsblog.security.JwtTokenProvider;
@@ -53,6 +57,12 @@ public abstract class AbstractIntegrationTest {
 
     @Autowired
     protected FriendLinkRepository friendLinkRepository;
+
+    @Autowired
+    protected GuestMessageRepository guestMessageRepository;
+
+    @Autowired
+    protected MessageReplyRepository messageReplyRepository;
 
     @Autowired
     protected StaticAssetRepository staticAssetRepository;
@@ -118,5 +128,29 @@ public abstract class AbstractIntegrationTest {
         friendLink.setSubmittedIp("203.0.113.10");
         friendLink.setSubmittedAt(LocalDateTime.now());
         return friendLinkRepository.saveAndFlush(friendLink);
+    }
+
+    /**
+     * 造一条留言记录：默认带上邮箱与来源 IP，便于验证「管理端可见、访客端不可见」。
+     */
+    protected GuestMessage createGuestMessage(String nickname, String email,
+                                              GuestMessage.MessageStatus status) {
+        GuestMessage message = new GuestMessage();
+        message.setNickname(nickname);
+        message.setEmail(email);
+        message.setContent("留言内容 " + nickname);
+        message.setIpAddress("203.0.113.20");
+        message.setUserAgent("JUnit/1.0");
+        message.setStatus(status);
+        return guestMessageRepository.saveAndFlush(message);
+    }
+
+    /** 给一条留言挂上管理员回复。 */
+    protected MessageReply createReply(GuestMessage message, AdminUser admin, String content) {
+        MessageReply reply = new MessageReply();
+        reply.setMessage(message);
+        reply.setAdminUser(admin);
+        reply.setContent(content);
+        return messageReplyRepository.saveAndFlush(reply);
     }
 }

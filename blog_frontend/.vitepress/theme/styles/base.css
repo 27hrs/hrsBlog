@@ -148,6 +148,10 @@ ol {
   --backdrop-veil: 0.18;
 }
 
+.site--guestbook {
+  --backdrop-veil: 0.18;
+}
+
 .site--page {
   --backdrop-veil: 0.34;
 }
