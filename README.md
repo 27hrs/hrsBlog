@@ -90,8 +90,9 @@ DeployNotifyService（防抖合并：窗口内多次变更只发一次）
 WebhookClient（RestClient）──POST──► GitHub Dispatches API / 通用 Webhook
         │                                │
         │ 每次尝试落 system_log            ▼
-        │                         Actions: blog-content-updated
-        ▼                         构建 VitePress → rsync 到站点目录
+        │                         Actions: Publish content
+        ▼                         （blog-content-updated）
+                                  构建 VitePress → rsync 到站点目录
 GET /api/admin/logs（管理端「系统日志」页）
 ```
 
@@ -135,7 +136,7 @@ GET /api/admin/logs（管理端「系统日志」页）
 1. Webhook 地址改为 `https://api.github.com/repos/{owner}/{repo}/dispatches`，
    密钥改成带 `repo` 权限的 GitHub PAT，保存。
 2. 发布一篇文章。
-3. GitHub 仓库 → Actions → **Build and deploy** 出现一条 `blog-content-updated` 触发的 run，
+3. GitHub 仓库 → Actions → **Publish content** 出现一条 `blog-content-updated` 触发的 run，
    run 结束后前台站点内容更新。
 
 **失败路径**
@@ -189,7 +190,14 @@ sync-friend-links.mjs（构建期）──► .vitepress/data/friend-links.json 
 
 生产使用 `compose.production.yaml`：后端与后台由镜像提供，博客前台是构建期静态产物，
 由 CI 用 `rsync` 同步到 1Panel 的站点目录（不产生镜像、不重启容器）。
-部署细节见 `.github/workflows/deploy.yml` 与 `docs/` 下的运维文档。
+
+| 工作流 | 触发事件 | 职责 |
+| --- | --- | --- |
+| `.github/workflows/deploy.yml`（Build and deploy） | `push master`、`workflow_dispatch` | compose 配置校验 + backend / admin-frontend 镜像构建推送 |
+| `.github/workflows/publish-content.yml`（Publish content） | `repository_dispatch: blog-content-updated`、`push master`、`workflow_dispatch` | 构建 VitePress 静态站点并 rsync 到站点目录 |
+
+部署细节见 `.github/workflows/deploy.yml`、`.github/workflows/publish-content.yml`
+与 `docs/` 下的运维文档。
 
 ## 许可
 
