@@ -11,6 +11,7 @@ const route = useRoute()
 
 const site = computed(() => theme.value.site || { nav: [], social: [] })
 const nav = computed(() => site.value.nav || [])
+const wordmark = computed(() => site.value.wordmark || site.value.name || 'HrsBlog')
 const scrolled = ref(false)
 const menuOpen = ref(false)
 const menuButton = ref(null)
@@ -87,9 +88,9 @@ onBeforeUnmount(() => {
 <template>
   <header class="site-header" :class="{ 'is-scrolled': scrolled }">
     <div class="site-header__inner wrap">
-      <a class="brand" href="/" aria-label="HrsBlog 首页">
+      <a class="brand" href="/" :aria-label="`${wordmark} 首页`">
         <BrandMark :size="30" />
-        <span class="brand__word">Hrs<span>Blog</span></span>
+        <span class="brand__word">{{ wordmark }}</span>
       </a>
 
       <nav class="nav" aria-label="主导航">
@@ -135,7 +136,7 @@ onBeforeUnmount(() => {
           <div class="drawer__head">
             <span class="drawer__brand">
               <BrandMark :size="28" />
-              <span>HrsBlog</span>
+              <span>{{ wordmark }}</span>
             </span>
             <button
               ref="closeButton"

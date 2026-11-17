@@ -1,6 +1,7 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import MarkdownIt from 'markdown-it'
 import { fetchPublicSettings } from '../api/settings.js'
 import { isTruthyFlag, resolveApiBase, toPositiveInt } from '../api/config.js'
 import { loadEnv } from './lib/load-env.mjs'
@@ -12,6 +13,31 @@ const DATA_DIR = path.join(ROOT, '.vitepress', 'data')
 const OUTPUT_FILE = path.join(DATA_DIR, 'site-settings.json')
 
 loadEnv(ROOT)
+
+// 关于页正文构建期编译：html:false 禁用原始 HTML（与文章管线同策略，防注入）。
+const markdown = new MarkdownIt({ html: false, linkify: true })
+
+// 站外链接统一补 target/rel，避免跳失与 window.opener 风险。
+const defaultLinkOpen =
+  markdown.renderer.rules.link_open ||
+  ((tokens, idx, options, env, self) => self.renderToken(tokens, idx, options))
+markdown.renderer.rules.link_open = (tokens, idx, options, env, self) => {
+  const token = tokens[idx]
+  const href = token.attrGet('href') || ''
+  if (/^https?:\/\//i.test(href)) {
+    token.attrSet('target', '_blank')
+    token.attrSet('rel', 'noopener noreferrer')
+  }
+  return defaultLinkOpen(tokens, idx, options, env, self)
+}
+
+/** 合并接口值并把 aboutContent 编译为 aboutHtml（SSG 预渲染进静态 HTML）。 */
+function buildSiteConfig(values) {
+  const merged = applySettingsToSiteConfig(siteConfig, values)
+  const content = merged.about?.content
+  merged.about = { content: content || '', html: content ? markdown.render(content) : '' }
+  return merged
+}
 
 const apiBase = resolveApiBase()
 const strict = isTruthyFlag(process.env.BLOG_SYNC_STRICT)
@@ -49,7 +75,7 @@ async function main() {
       generatedAt: new Date().toISOString(),
       source: 'local',
       values: existing?.values ?? {},
-      siteConfig: applySettingsToSiteConfig(siteConfig, existing?.values ?? {}),
+      siteConfig: buildSiteConfig(existing?.values ?? {}),
     })
     return
   }
@@ -58,7 +84,7 @@ async function main() {
     log(`从 ${apiBase} 读取公开站点设置`)
     const values = await fetchPublicSettings({ baseUrl: apiBase, timeout, retries: 1 })
     const valueCount = Object.keys(values).length
-    const merged = applySettingsToSiteConfig(siteConfig, values)
+    const merged = buildSiteConfig(values)
     await writeAtomically({
       generatedAt: new Date().toISOString(),
       source: valueCount > 0 ? 'api' : 'api-empty',
@@ -76,7 +102,7 @@ async function main() {
       generatedAt: new Date().toISOString(),
       source: 'fallback',
       values: existing?.values ?? {},
-      siteConfig: applySettingsToSiteConfig(siteConfig, existing?.values ?? {}),
+      siteConfig: buildSiteConfig(existing?.values ?? {}),
     })
   }
 }

@@ -9,6 +9,23 @@ const ARTICLES_DIR = path.join(ROOT, 'articles')
 const DATA_DIR = path.join(ROOT, '.vitepress', 'data')
 const PUBLIC_DIR = path.join(ROOT, 'public')
 const DATA_FILE = path.join(DATA_DIR, 'articles.json')
+const SETTINGS_FILE = path.join(DATA_DIR, 'site-settings.json')
+
+/**
+ * 优先使用 sync-settings.mjs 落盘的合并配置（含后台 allowIndexing 等），
+ * 文件缺失或损坏时回退 site.config.mjs 本地默认。
+ */
+async function resolveSiteConfig() {
+  try {
+    const payload = JSON.parse(await fs.readFile(SETTINGS_FILE, 'utf8'))
+    if (payload?.siteConfig && typeof payload.siteConfig === 'object') {
+      return { ...defaultSiteConfig, ...payload.siteConfig }
+    }
+  } catch {
+    // 未同步或文件损坏：用本地默认继续。
+  }
+  return defaultSiteConfig
+}
 
 async function ensureDir(directory) {
   await fs.mkdir(directory, { recursive: true })
@@ -119,8 +136,9 @@ export async function writeContent({
   siteUrl,
   assetBase = '',
   apiBase = '',
-  siteConfig = defaultSiteConfig,
+  siteConfig,
 }) {
+  const effectiveSiteConfig = siteConfig ?? (await resolveSiteConfig())
   await ensureDir(ARTICLES_DIR)
   await ensureDir(DATA_DIR)
   await ensureDir(PUBLIC_DIR)
@@ -159,11 +177,11 @@ export async function writeContent({
   await writeAtomic(DATA_FILE, `${JSON.stringify(index, null, 2)}\n`)
   await writeAtomic(
     path.join(PUBLIC_DIR, 'feed.xml'),
-    renderFeed({ items, siteConfig, siteUrl, generatedAt }),
+    renderFeed({ items, siteConfig: effectiveSiteConfig, siteUrl, generatedAt }),
   )
   await writeAtomic(
     path.join(PUBLIC_DIR, 'robots.txt'),
-    renderRobots({ siteUrl, allowIndexing: siteConfig.allowIndexing !== false }),
+    renderRobots({ siteUrl, allowIndexing: effectiveSiteConfig.allowIndexing !== false }),
   )
 
   return {

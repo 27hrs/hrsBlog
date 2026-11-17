@@ -10,6 +10,8 @@ const site = computed(() => theme.value.site || {})
 const author = computed(() => site.value.author || {})
 const stack = computed(() => site.value.stack || [])
 const social = computed(() => site.value.social || [])
+// 后台 aboutContent 经构建期 markdown-it 编译（html:false 防注入）；为空回退本地 about.md。
+const aboutHtml = computed(() => site.value.about?.html || '')
 
 function isExternal(href) {
   return /^https?:\/\//i.test(href || '')
@@ -45,7 +47,8 @@ function isExternal(href) {
       </FramePanel>
 
       <FramePanel as="section" tone="paper" label="02 / ABOUT ME" class="about__body">
-        <div class="article-prose about-prose">
+        <div v-if="aboutHtml" class="article-prose about-prose" v-html="aboutHtml" />
+        <div v-else class="article-prose about-prose">
           <slot />
         </div>
 

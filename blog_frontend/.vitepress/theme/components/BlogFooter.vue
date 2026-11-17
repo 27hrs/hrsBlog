@@ -9,6 +9,7 @@ import { useArticles } from '../composables/useArticles.js'
 const { theme } = useData()
 const { generatedAt } = useArticles()
 const site = computed(() => theme.value.site || {})
+const wordmark = computed(() => site.value.wordmark || site.value.name || 'HrsBlog')
 const year = new Date().getFullYear()
 const startYear = computed(() => site.value.footer?.startYear || year)
 const copyright = computed(() =>
@@ -25,9 +26,9 @@ const syncedAt = computed(() => {
     <div class="site-footer__inner wrap">
       <div class="footer-grid">
         <div class="footer-brand">
-          <a class="footer-brand__mark" href="/" aria-label="HrsBlog 首页">
+          <a class="footer-brand__mark" href="/" :aria-label="`${wordmark} 首页`">
             <BrandMark :size="38" />
-            <span class="footer-brand__name">Hrs<span>Blog</span></span>
+            <span class="footer-brand__name">{{ wordmark }}</span>
           </a>
           <p class="footer-brand__tagline">{{ site.tagline }}</p>
           <p class="footer-brand__intro">
@@ -58,7 +59,7 @@ const syncedAt = computed(() => {
 
       <div class="footer-bottom">
         <p class="footer-bottom__left">
-          <span>{{ copyright }} Hrs</span>
+          <span>{{ copyright }} {{ site.author?.name }}</span>
           <span class="footer-bottom__dot" aria-hidden="true" />
           <span>{{ site.footer?.note }}</span>
         </p>
@@ -77,7 +78,7 @@ const syncedAt = computed(() => {
       </div>
     </div>
 
-    <span class="site-footer__watermark" aria-hidden="true">HrsBlog</span>
+    <span class="site-footer__watermark" aria-hidden="true">{{ wordmark }}</span>
   </footer>
 </template>
 

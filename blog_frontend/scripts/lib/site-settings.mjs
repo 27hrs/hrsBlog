@@ -5,8 +5,8 @@
  * 合并规则：
  * - 只覆盖“有值”的配置项，空字符串/缺失一律保留本地默认，保证接口部分不可用时站点仍完整；
  * - `friendLinks` 等列表字段为空数组时同样保留默认值；
- * - `enableGuestbook` 是布尔开关：false 也是有效取值，缺失时才保留本地默认（关闭）；
- * - 背景图只接受 `http(s)://` 或 `/` 开头的链接，其余协议丢弃（防 `javascript:` 注入）。
+ * - 布尔开关（`enableGuestbook`/`allowIndexing`）：false 也是有效取值，缺失时才保留本地默认；
+ * - 图片/链接类字段只接受 `http(s)://` 或 `/` 开头的链接，其余协议丢弃（防 `javascript:` 注入）。
  */
 
 const HEX_COLOR = /^#[0-9a-f]{6}$/i
@@ -41,11 +41,16 @@ export function applySettingsToSiteConfig(defaults, values = {}) {
   // ── 基本设置 ──
   text('siteName', (value) => {
     site.name = value
+  })
+  text('siteWordmark', (value) => {
     site.wordmark = value
   })
+  // wordmark 未单独配置时跟随站点名称（两者都缺失则保留本地默认）
+  if (!isBlank(values.siteName) && isBlank(values.siteWordmark)) {
+    site.wordmark = String(values.siteName).trim()
+  }
   text('siteTagline', (value) => {
     site.tagline = value
-    site.footer.note = value
   })
   text('siteDescription', (value) => {
     site.description = value
@@ -57,6 +62,12 @@ export function applySettingsToSiteConfig(defaults, values = {}) {
   })
   text('authorRole', (value) => {
     site.author.role = value
+  })
+  text('authorTagline', (value) => {
+    site.author.tagline = value
+  })
+  text('authorIntro', (value) => {
+    site.author.intro = value
   })
   text('authorBio', (value) => {
     site.author.bio = value
@@ -97,6 +108,33 @@ export function applySettingsToSiteConfig(defaults, values = {}) {
     site.social = social
   }
 
+  // ── 页脚配置 ──
+  if (!isBlank(values.footerStartYear)) {
+    const startYear = Number(values.footerStartYear)
+    if (Number.isInteger(startYear) && startYear >= 1900 && startYear <= 2100) {
+      site.footer.startYear = startYear
+      overrides.push('footerStartYear')
+    }
+  }
+  text('footerNote', (value) => {
+    site.footer.note = value
+  })
+  text('icp', (value) => {
+    site.footer.icp = value
+  })
+  text('icpUrl', (value) => {
+    const url = String(value).trim()
+    if (/^https?:\/\//i.test(url)) site.footer.icpUrl = url
+  })
+  text('footerSyncedAt', (value) => {
+    site.footer.syncedAt = value
+  })
+
+  // ── 关于页正文（构建期由 sync-settings 编译为 aboutHtml，此处只保留原始 Markdown） ──
+  text('aboutContent', (value) => {
+    site.about = { ...(site.about || {}), content: value }
+  })
+
   // ── 外观与背景 ──
   text('backgroundImage', (value) => {
     const url = safeImage(value)
@@ -112,6 +150,11 @@ export function applySettingsToSiteConfig(defaults, values = {}) {
   if (!isBlank(values.defaultTheme) && THEMES.has(String(values.defaultTheme))) {
     site.defaultTheme = String(values.defaultTheme)
     overrides.push('defaultTheme')
+  }
+  // 布尔开关：false 也是有效取值（禁用搜索引擎索引），缺失时保留本地默认。
+  if (typeof values.allowIndexing === 'boolean') {
+    site.allowIndexing = values.allowIndexing
+    overrides.push('allowIndexing')
   }
   if (!isBlank(values.accentColor) && HEX_COLOR.test(String(values.accentColor).trim())) {
     site.accentColor = String(values.accentColor).trim().toLowerCase()

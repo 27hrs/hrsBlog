@@ -152,11 +152,10 @@ public class SiteSettingService {
         switch (spec.valueType()) {
             case STRING -> {
                 String text = String.valueOf(value);
-                if (text.length() > MAX_STRING_LENGTH) {
-                    return "内容长度超出限制（最多 " + MAX_STRING_LENGTH + " 字符）";
-                }
-                if (spec.max() != null && text.length() > spec.max().intValue()) {
-                    return "长度不能超过 " + spec.max().intValue() + " 个字符";
+                // 字符串上限：spec.max() 提供时以其为准（如 aboutContent 20000），否则取全局默认
+                int max = spec.max() != null ? spec.max().intValue() : MAX_STRING_LENGTH;
+                if (text.length() > max) {
+                    return "长度不能超过 " + max + " 个字符";
                 }
                 if (spec.isImage() && !text.isBlank() && !isSafeResourceUrl(text)) {
                     return "图片链接必须以 http(s):// 或 / 开头";
@@ -227,7 +226,7 @@ public class SiteSettingService {
     }
 
     private boolean isHttpUrlField(String key) {
-        return "githubUrl".equals(key) || "xUrl".equals(key)
+        return "githubUrl".equals(key) || "xUrl".equals(key) || "icpUrl".equals(key)
                 || "analyticsScriptUrl".equals(key) || "webhookUrl".equals(key);
     }
 

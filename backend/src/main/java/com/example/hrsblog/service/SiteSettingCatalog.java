@@ -20,7 +20,7 @@ import java.util.Map;
  *       防止 {@code javascript:} 等协议注入。</li>
  * </ul>
  *
- * <p>公开性约定：basic / identity / appearance / seo 与 reading.friendLinks /
+ * <p>公开性约定：basic / identity / appearance / footer / about / seo 与 reading.friendLinks /
  * reading.enableGuestbook / reading.guestbookPageSize 会被博客前台消费，标记为公开；
  * integrations（统计、webhook）与 advanced 属于运维私密配置，不进入访客接口。
  */
@@ -52,17 +52,20 @@ public final class SiteSettingCatalog {
 
     static {
         int order = 0;
-        // ── basic：基本设置（公开：站点名/描述/Logo 是前台第一印象） ──
+        // ── basic：基本设置（公开：站点名/标识/描述与搜索引擎开关是前台第一印象） ──
         put(spec("siteName", "basic", ValueType.STRING, true, ++order, "站点名称", 60d));
         put(spec("siteTagline", "basic", ValueType.STRING, true, ++order, "一句话介绍", 80d));
         put(spec("siteDescription", "basic", ValueType.STRING, true, ++order, "站点描述", 300d));
         put(spec("siteLogo", "basic", ValueType.STRING, true, ++order, "站点 Logo 图片链接", 500d));
-        put(spec("footerText", "basic", ValueType.STRING, true, ++order, "页脚文案", 100d));
+        put(spec("siteWordmark", "basic", ValueType.STRING, true, ++order, "站点文字标识（页眉/页脚品牌文字）", 60d));
+        put(spec("allowIndexing", "basic", ValueType.BOOLEAN, true, ++order, "是否允许搜索引擎索引（robots.txt 与 noindex 由它驱动）"));
 
         // ── identity：作者资料（公开：关于页与文章署名使用） ──
         put(spec("authorName", "identity", ValueType.STRING, true, ++order, "作者显示名称", 40d));
         put(spec("authorRole", "identity", ValueType.STRING, true, ++order, "作者身份标签", 60d));
-        put(spec("authorBio", "identity", ValueType.STRING, true, ++order, "作者个人简介", 500d));
+        put(spec("authorTagline", "identity", ValueType.STRING, true, ++order, "作者一句话标语", 80d));
+        put(spec("authorIntro", "identity", ValueType.STRING, true, ++order, "作者简介（资料卡短介绍）", 500d));
+        put(spec("authorBio", "identity", ValueType.STRING, true, ++order, "作者详细自述", 500d));
         put(spec("avatarUrl", "identity", ValueType.STRING, true, ++order, "作者头像图片链接", 500d));
         put(spec("location", "identity", ValueType.STRING, true, ++order, "所在城市", 40d));
         put(spec("email", "identity", ValueType.STRING, true, ++order, "联系邮箱", 120d));
@@ -87,12 +90,22 @@ public final class SiteSettingCatalog {
         put(spec("enableGuestbook", "reading", ValueType.BOOLEAN, true, ++order, "是否展示留言板入口"));
         put(spec("guestbookPageSize", "reading", ValueType.NUMBER, true, ++order, "留言板每页数量", 1d, 50d));
 
+        // ── footer：页脚配置（公开：博客页脚版权/备案/同步时间展示） ──
+        put(spec("footerStartYear", "footer", ValueType.NUMBER, true, ++order, "页脚版权起始年份", 1900d, 2100d));
+        put(spec("footerNote", "footer", ValueType.STRING, true, ++order, "页脚备注文案", 100d));
+        put(spec("icp", "footer", ValueType.STRING, true, ++order, "ICP 备案号，留空则页脚隐藏备案栏", 60d));
+        put(spec("icpUrl", "footer", ValueType.STRING, true, ++order, "ICP 备案查询链接", 200d));
+        put(spec("footerSyncedAt", "footer", ValueType.STRING, true, ++order, "页脚『最近同步』回退时间文案", 40d));
+
+        // ── about：关于页（公开：关于页正文，构建期编译为静态 HTML） ──
+        put(spec("aboutContent", "about", ValueType.STRING, true, ++order,
+                "关于页 Markdown 正文，留空时前台回退本地 about.md", 20000d));
+
         // ── seo：SEO 与分享（公开：构建期生成 head/sitemap/RSS 时消费） ──
         put(spec("titleTemplate", "seo", ValueType.STRING, true, ++order, "页面标题模板，:title 为占位符", 100d));
         put(spec("metaDescription", "seo", ValueType.STRING, true, ++order, "默认 SEO 描述", 200d));
         put(spec("keywords", "seo", ValueType.STRING, true, ++order, "站点关键词（英文逗号分隔）", 200d));
         put(spec("ogImage", "seo", ValueType.STRING, true, ++order, "默认分享卡片图链接", 500d));
-        put(spec("robots", "seo", ValueType.STRING, true, ++order, "搜索引擎索引策略 index/noindex", 16d));
         put(spec("enableSitemap", "seo", ValueType.BOOLEAN, true, ++order, "构建时是否生成 sitemap"));
 
         // ── integrations：第三方集成（私密：不暴露给访客） ──
@@ -109,7 +122,6 @@ public final class SiteSettingCatalog {
         // ── advanced：高级（私密：站点运维开关） ──
         put(spec("siteStatus", "advanced", ValueType.STRING, false, ++order, "站点状态 online/maintenance", 16d));
         put(spec("timezone", "advanced", ValueType.STRING, false, ++order, "站点时区", 64d));
-        put(spec("allowIndexing", "advanced", ValueType.BOOLEAN, false, ++order, "是否允许搜索引擎抓取"));
         put(spec("showDebugInfo", "advanced", ValueType.BOOLEAN, false, ++order, "页脚是否展示构建信息"));
     }
 
