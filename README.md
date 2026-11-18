@@ -78,10 +78,10 @@ pnpm dev        # http://localhost:27080
 把该 Webhook 指向 GitHub Dispatches API，GitHub Actions 就会自动重建并发布 VitePress 前台。
 
 ```text
-AdminArticleController / AdminSettingController / AdminFriendLinkController
+AdminArticleController / AdminSettingController / AdminFriendLinkController / AdminShuoshuoController
         │  事务内埋点（只在「真的变了」时）
         ▼
-SiteSettingService / ArticleService / FriendLinkService ──publishEvent──► ContentChangedEvent
+SiteSettingService / ArticleService / FriendLinkService / ShuoshuoService ──publishEvent──► ContentChangedEvent
         │  AFTER_COMMIT
         ▼
 DeployNotifyService（防抖合并：窗口内多次变更只发一次）
@@ -97,7 +97,8 @@ GET /api/admin/logs（管理端「系统日志」页）
 ```
 
 - **触发条件**：站点配置实际变化；文章直接发布 / 草稿首发 / 已发布文章内容更新；
-  友链审核通过 / 已通过的友链被编辑或删除。草稿编辑、保存相同配置都不触发。
+  友链审核通过 / 已通过的友链被编辑或删除；说说发布 / 撤回 / 删除 / 已公开的说说被编辑。
+  草稿编辑、保存相同配置都不触发。
 - **防抖**：默认 10 秒窗口，窗口内的多次变更合并成一次投递，只带变更原因、不带内容。
 - **重试**：默认失败重试 2 次（退避 5s / 15s），每次尝试都写一条日志；
   最终失败只记 ERROR，**不影响文章 / 配置保存主流程**。
@@ -221,6 +222,58 @@ GET /api/visitors/guest-messages ──► /guestbook/ 运行期拉取（无需�
 | `DELETE /api/admin/guest-messages/{id}` | 删除留言（先删回复再删留言） |
 
 数据库迁移：`backend/src/main/resources/db/migration/V1__create_blog_schema.sql`（`guest_message` / `message_reply` 表）。
+
+## 说说系统
+
+管理员在后台写「说说」，发布后出现在博客前台的 `/shuoshuo/` 时间线页。
+
+```text
+管理后台「内容 → 说说管理」写草稿
+      │  POST/PUT /api/admin/shuoshuo（落成 PRIVATE 草稿）
+      ▼
+ShuoshuoService ──► shuoshuo 表（visibility = PRIVATE）
+      │
+      │  发布（POST /api/admin/shuoshuo/{id}/publish）
+      ▼
+ContentChangedEvent ──► Webhook ──► CI 重建前台
+      │
+      ▼
+sync-shuoshuo.mjs（构建期）──► .vitepress/data/shuoshuo.json ──► /shuoshuo/ 静态页
+```
+
+- **纯构建期静态化**：说说页与文章、友链一样是 SSG 产物，运行期不需要后端在线。
+- **草稿 / 发布两态**：新建一律落成 `PRIVATE` 草稿；`publish` 置 `PUBLIC` 并在 `published_at`
+  为空时回填当前时间；`unpublish` 置回 `PRIVATE` 但**保留** `published_at` ——
+  重新发布时条目回到原来的时间线位置，而不是跳到最新一条。
+- **Markdown 构建期编译**：正文以 Markdown 原文入库，构建期由 markdown-it（`html: false`）
+  编译成静态 HTML 写进构建产物，浏览器端不再解析 Markdown。
+- **访客接口只返回公开条目**：响应仅含 `id` / `content` / `publishedAt`，
+  草稿痕迹与编辑记录都不外泄。
+- **自动重建**：发布 / 撤回 / 删除 / 已公开说说被编辑时触发与文章发布同一套
+  `ContentChangedEvent` → Webhook → CI 链路；草稿的创建与编辑不触发。
+- **页头文案可配置**：`shuoshuoTitle` / `shuoshuoDescription` / `shuoshuoEmptyText`
+  三个公开配置项在后台「站点设置 → 阅读体验」里改，写入 `site_setting` 后经
+  `sync-settings.mjs` 进入构建产物；缺省回退本地默认值。
+
+| 接口 | 说明 |
+| --- | --- |
+| `GET /api/visitors/shuoshuo?page=&size=` | 访客分页列表（仅 PUBLIC，按发布时间倒序） |
+| `GET /api/admin/shuoshuo?visibility=&page=&size=` | 管理端分页列表（可选 `PUBLIC` / `PRIVATE` 筛选） |
+| `GET /api/admin/shuoshuo/{id}` | 管理端详情 |
+| `POST /api/admin/shuoshuo` | 新建（落成私有草稿） |
+| `PUT /api/admin/shuoshuo/{id}` | 更新正文（只覆盖 content） |
+| `POST /api/admin/shuoshuo/{id}/publish` | 发布（首次发布回填发布时间） |
+| `POST /api/admin/shuoshuo/{id}/unpublish` | 撤回（保留发布时间） |
+| `DELETE /api/admin/shuoshuo/{id}` | 删除（硬删除，返回 message「说说已删除」） |
+
+数据库表 `shuoshuo` 随 `backend/src/main/resources/db/migration/V1__create_blog_schema.sql` 一起建好，
+本次未新增表结构；站点设置种子在 `V6__seed_shuoshuo_settings.sql`。
+
+> V6 使用 `V6` 前缀是因为迁移目录里存在**两个 V2 前缀文件**（`V2__create_static_asset.sql` 与
+> `V2__add_article_soft_delete.sql`，历史遗留）——Flyway 12 遇到重复版本号会直接失败，
+> 新增迁移必须避开 V2。V6 除了幂等预置说说三键，还会把 `reading` 组之后的分组
+> （footer / about / seo / integrations / advanced）的 `sort_order` 整体后移 3 位，
+> 使 `site_setting` 与 `SiteSettingCatalog` 保持一致、避免 `sort_order` 重号。
 
 ## 部署
 

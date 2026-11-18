@@ -54,6 +54,12 @@ const routes = [
         meta: { title: '留言管理', section: '内容', requiresAuth: true },
       },
       {
+        path: 'shuoshuo',
+        name: 'shuoshuo',
+        component: () => import('@/views/ShuoshuoView.vue'),
+        meta: { title: '说说管理', section: '内容', requiresAuth: true },
+      },
+      {
         path: 'settings',
         name: 'settings',
         component: () => import('@/views/SettingsView.vue'),

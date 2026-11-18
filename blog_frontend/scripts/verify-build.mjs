@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 const ROOT = fileURLToPath(new URL('..', import.meta.url))
 const DIST = path.join(ROOT, '.vitepress', 'dist')
 const DATA = path.join(ROOT, '.vitepress', 'data', 'articles.json')
+const SHUOSHUO_DATA = path.join(ROOT, '.vitepress', 'data', 'shuoshuo.json')
 
 function fail(message) {
   errors.push(message)
@@ -37,6 +38,7 @@ if (!existsSync(path.join(DIST, 'index.html'))) fail('缺少 dist/index.html')
 if (!existsSync(path.join(DIST, 'articles', 'index.html'))) fail('缺少文章列表 dist/articles/index.html')
 if (!existsSync(path.join(DIST, 'about.html'))) fail('缺少 dist/about.html')
 if (!existsSync(path.join(DIST, 'links', 'index.html'))) fail('缺少友链页 dist/links/index.html')
+if (!existsSync(path.join(DIST, 'shuoshuo', 'index.html'))) fail('缺少说说页 dist/shuoshuo/index.html')
 if (!existsSync(path.join(DIST, 'guestbook', 'index.html'))) fail('缺少留言页 dist/guestbook/index.html')
 if (!existsSync(path.join(DIST, '404.html'))) fail('缺少 dist/404.html')
 
@@ -65,6 +67,7 @@ if (!existsSync(sitemapFile)) {
   const sitemap = read(sitemapFile)
   if (!sitemap.includes('/articles/')) fail('sitemap 中缺少文章列表')
   if (!sitemap.includes('/links/')) fail('sitemap 中缺少友链页')
+  if (!sitemap.includes('/shuoshuo/')) fail('sitemap 中缺少说说页')
   if (!sitemap.includes('/guestbook/')) fail('sitemap 中缺少留言页')
 
   for (const item of items) {
@@ -72,8 +75,8 @@ if (!existsSync(sitemapFile)) {
   }
 
   const locations = [...sitemap.matchAll(/<loc>(.*?)<\/loc>/g)].map((match) => match[1])
-  // 首页 + 文章列表 + 关于 + 友链 + 留言
-  const expectedLocations = items.length + 5
+  // 首页 + 文章列表 + 关于 + 友链 + 说说 + 留言
+  const expectedLocations = items.length + 6
   if (locations.length !== expectedLocations) {
     fail(`sitemap 页面数量异常：${locations.length}，预期 ${expectedLocations}`)
   }
@@ -114,6 +117,51 @@ if (existsSync(linksFile)) {
   const linksHtml = read(linksFile)
   if (!linksHtml.includes(htmlEscape('友情链接'))) fail('友链页缺少标题：友情链接')
   if (!linksHtml.includes('申请友链')) fail('友链页缺少申请表单')
+}
+
+/**
+ * 说说页校验：
+ * - 数据文件可解析，且每条说说都带构建期编译好的 `html`；
+ * - 页面存在且渲染出时间线结构（有数据时渲染条目与日期标签，无数据时渲染空态）。
+ */
+const shuoshuoItems = []
+if (existsSync(SHUOSHUO_DATA)) {
+  try {
+    const payload = JSON.parse(read(SHUOSHUO_DATA))
+    shuoshuoItems.push(...(Array.isArray(payload.items) ? payload.items : []))
+  } catch (error) {
+    fail(`说说数据文件解析失败：${error.message}`)
+  }
+} else {
+  fail('缺少 .vitepress/data/shuoshuo.json')
+}
+
+for (const item of shuoshuoItems) {
+  if (typeof item.html !== 'string') {
+    fail('说说数据缺少构建期编译的 html 字段')
+    break
+  }
+}
+
+const shuoshuoFile = path.join(DIST, 'shuoshuo', 'index.html')
+if (existsSync(shuoshuoFile)) {
+  const shuoshuoHtml = read(shuoshuoFile)
+
+  if (shuoshuoItems.length > 0) {
+    if (!shuoshuoHtml.includes('shuoshuo__timeline')) fail('说说页缺少时间线结构')
+    if (!shuoshuoHtml.includes('shuoshuo__item')) fail('说说页没有渲染说说条目')
+
+    // 时间标签取最新一条：归一化后的 ISO 串可以直接按字典序比较。
+    const newest = shuoshuoItems
+      .map((item) => String(item?.publishedAt || ''))
+      .filter(Boolean)
+      .sort()
+      .pop()
+    const dateTag = newest ? newest.slice(0, 10).replaceAll('-', '.') : ''
+    if (dateTag && !shuoshuoHtml.includes(dateTag)) fail('说说页缺少最新说说的日期标签')
+  } else if (!shuoshuoHtml.includes('shuoshuo__empty')) {
+    fail('说说页缺少空态提示')
+  }
 }
 
 const guestbookFile = path.join(DIST, 'guestbook', 'index.html')

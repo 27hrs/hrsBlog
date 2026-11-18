@@ -13,6 +13,7 @@ VitePress 1.6.4 + 完全自定义主题的静态博客。内容来自 HrsBlog �
 | `/articles/{slug}` | 静态文章页：封面、正文、右侧目录、阅读进度、上下篇、代码复制 |
 | `/about` | 关于：资料卡、Markdown 正文、技术栈、联系方式 |
 | `/links/` | 友链：画框卡片网格（头像/名称/简介/外链）+「申请友链」运行期表单 |
+| `/shuoshuo/` | 说说：按年/月分组的时间线卡片流，正文为构建期编译好的静态 HTML |
 | `/guestbook/` | 留言：留言墙（昵称/头像/时间/内容/站长回复）+ 提交表单，运行期拉取已审核留言 |
 | `/404.html` | 自定义“这一页漂走了” |
 
@@ -27,8 +28,9 @@ pnpm seed         # 只用 fixtures 生成 6 篇演示文章
 pnpm sync          # 从 API 同步文章、封面、feed、robots（需要 BLOG_API_BASE）
 pnpm sync:settings # 只同步后台站点设置
 pnpm sync:friend-links # 只同步已通过的友链到 .vitepress/data/friend-links.json
+pnpm sync:shuoshuo # 只同步公开说说到 .vitepress/data/shuoshuo.json
 pnpm clean        # 清空 .vitepress/dist
-pnpm build        # sync settings + sync + sync friend-links（配置了 API 时）+ clean + build + verify
+pnpm build        # sync settings + sync + sync friend-links + sync shuoshuo（配置了 API 时）+ clean + build + verify
 pnpm preview      # 预览构建产物，端口 27080
 pnpm verify       # 校验静态产物、sitemap、feed、陈旧页面
 ```
@@ -97,6 +99,36 @@ composables/useFriendLinks.js → views/LinksView.vue → /links/ 静态页
 - `contact`（联系方式）只属于站长：访客接口不返回，同步脚本也会把它挡在构建产物之外（`verify-build.mjs` 会校验）。
 - 「申请友链」表单是运行期请求（`POST /api/visitors/friend-links`，经 nginx 的 `/api/` 反代；本地 dev 由 VitePress `server.proxy` 转发到 `localhost:27000`）。表单 JS 失败不影响 `/links/` 的静态展示。
 
+### 说说管线
+
+```text
+GET /api/visitors/shuoshuo?page=0&size=50     （只返回 PUBLIC，按发布时间倒序）
+        │
+        ▼
+api/shuoshuo.js            分页循环拉全量 + 时间归一化为 +08:00 ISO
+        │
+        ▼
+scripts/sync-shuoshuo.mjs  与 sync-friend-links.mjs 同构：超时重试、原子写、失败回退缓存
+        │                   同时用 scripts/lib/markdown.mjs 把正文编译成静态 HTML
+        ▼
+.vitepress/data/shuoshuo.json                 （gitignore）
+        │
+        ▼
+composables/useShuoshuo.js → views/ShuoshuoView.vue → /shuoshuo/ 静态页
+```
+
+- **Markdown 构建期编译**：正文在 `sync-shuoshuo.mjs` 里就用 markdown-it（`html: false`，与关于页
+  同一策略）编译成 HTML 存进 `html` 字段，浏览器端只做 `v-html` 渲染，不再解析 Markdown。
+  共享渲染器在 `scripts/lib/markdown.mjs`（`sync-settings.mjs` 也改用它）。
+- **时间按 Asia/Shanghai 解读**：后端存的是无时区的 `LocalDateTime`，构建期统一按
+  `+08:00` 解释并输出带偏移的 ISO 串；视图分组时再用 `Intl.DateTimeFormat` 按
+  `Asia/Shanghai` 二次拆解，运行环境的时区不会影响年/月分组。
+- **文案来自站点设置**：`shuoshuoTitle` / `shuoshuoDescription` / `shuoshuoEmptyText`
+  三项公开配置随 `sync-settings.mjs` 进入 `site.shuoshuo`，读不到时回退
+  `.vitepress/site.config.mjs` 的本地默认值。
+- **构建产物校验**：`verify-build.mjs` 会检查 `/shuoshuo/` 页面存在、时间线结构、
+  每条数据的 `html` 字段，以及 sitemap 里包含 `/shuoshuo/`。
+
 ### 留言板（运行期）
 
 与文章/友链的构建期同步不同，留言走**运行期接口**——审核通过后立即可见，不必等 CI 重建：
@@ -125,6 +157,7 @@ composables/useGuestbook.js → views/GuestbookView.vue → /guestbook/（SSG �
 | `api/articles.js` | 列表分页、详情、`listAllArticles`、`getArticleDetails`、slug 校验 |
 | `api/settings.js` | 访客站点设置（`GET /visitors/settings`）读取与响应形状校验 |
 | `api/friend-links.js` | 已通过友链读取（`GET /visitors/friend-links`）与申请提交（`POST`，不重试） |
+| `api/shuoshuo.js` | 公开说说分页读取（`GET /visitors/shuoshuo`），内部循环翻页并归一化时间 |
 | `api/guest-messages.js` | 留言分页读取（`GET /visitors/guest-messages`）与提交（`POST`，不重试）、字段校验、QQ 头像派生 |
 | `api/assets.js` | 封面 URL 安全校验、绝对地址解析 |
 | `api/config.js` | `BLOG_API_BASE` / `BLOG_SITE_URL` / 严格模式等配置解析 |
@@ -145,12 +178,14 @@ composables/useGuestbook.js → views/GuestbookView.vue → /guestbook/（SSG �
 | 文章详情 | `ArticleView.vue`、`ArticleToc.vue`、`ReadingProgress.vue` |
 | 关于 | `AboutView.vue`、`about.md` |
 | 友链 | `LinksView.vue`、`FriendLinkCard.vue`、`FriendLinkApplyForm.vue`、`links/index.md` |
+| 说说 | `ShuoshuoView.vue`、`useShuoshuo.js`、`shuoshuo/index.md` |
 | 留言 | `GuestbookView.vue`、`GuestMessageCard.vue`、`GuestMessageForm.vue`、`useGuestbook.js`、`guestbook/index.md` |
 | 卡片/画框/壳层 | `components/`、`Layout.vue` |
 | 设计 token / 正文排版 | `styles/tokens.css`、`styles/prose.css` |
+| 共享 Markdown 渲染器 | `scripts/lib/markdown.mjs` |
 | 演示内容 | `scripts/fixtures/articles.mjs` |
 | API | `api/` |
-| 同步/清理/校验 | `scripts/sync-content.mjs`、`sync-friend-links.mjs`、`clean-dist.mjs`、`verify-build.mjs` |
+| 同步/清理/校验 | `scripts/sync-content.mjs`、`sync-friend-links.mjs`、`sync-shuoshuo.mjs`、`clean-dist.mjs`、`verify-build.mjs` |
 
 ## 设计
 

@@ -4,14 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node scripts/sync-settings.mjs && node scripts/sync-content.mjs && node scripts/sync-friend-links.mjs && vitepress dev --port 27080",
+    "dev": "node scripts/sync-settings.mjs && node scripts/sync-content.mjs && node scripts/sync-friend-links.mjs && node scripts/sync-shuoshuo.mjs && vitepress dev --port 27080",
     "dev:offline": "node scripts/seed-content.mjs && vitepress dev --port 27080",
-    "sync": "node scripts/sync-content.mjs && node scripts/sync-settings.mjs && node scripts/sync-friend-links.mjs",
+    "sync": "node scripts/sync-content.mjs && node scripts/sync-settings.mjs && node scripts/sync-friend-links.mjs && node scripts/sync-shuoshuo.mjs",
     "sync:settings": "node scripts/sync-settings.mjs",
     "sync:friend-links": "node scripts/sync-friend-links.mjs",
+    "sync:shuoshuo": "node scripts/sync-shuoshuo.mjs",
     "seed": "node scripts/seed-content.mjs",
     "clean": "node scripts/clean-dist.mjs",
-    "build": "node scripts/sync-settings.mjs && node scripts/sync-content.mjs && node scripts/sync-friend-links.mjs && node scripts/clean-dist.mjs && vitepress build && node scripts/verify-build.mjs",
+    "build": "node scripts/sync-settings.mjs && node scripts/sync-content.mjs && node scripts/sync-friend-links.mjs && node scripts/sync-shuoshuo.mjs && node scripts/clean-dist.mjs && vitepress build && node scripts/verify-build.mjs",
     "preview": "vitepress preview --port 27080",
     "verify": "node scripts/verify-build.mjs"
   },

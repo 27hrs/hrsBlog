@@ -24,6 +24,7 @@ const groups = [
       { name: 'article-create', label: '文章投放', icon: 'pen-line' },
       { name: 'friend-links', label: '友链管理', icon: 'link' },
       { name: 'guest-messages', label: '留言管理', icon: 'message-square' },
+      { name: 'shuoshuo', label: '说说管理', icon: 'feather' },
     ],
   },
   {

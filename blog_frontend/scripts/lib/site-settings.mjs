@@ -203,6 +203,20 @@ export function applySettingsToSiteConfig(defaults, values = {}) {
     else site.nav.push(entry)
   }
 
+  // ── 说说 ──
+  // 三项文案都是“有值才覆盖”：读不到时保留 site.config.mjs 的本地默认值。
+  const shuoshuo = { ...(site.shuoshuo || {}) }
+  text('shuoshuoTitle', (value) => {
+    shuoshuo.title = value
+  })
+  text('shuoshuoDescription', (value) => {
+    shuoshuo.description = value
+  })
+  text('shuoshuoEmptyText', (value) => {
+    shuoshuo.emptyText = value
+  })
+  site.shuoshuo = shuoshuo
+
   // ── SEO ──
   if (!isBlank(values.titleTemplate) && String(values.titleTemplate).includes(':title')) {
     site.titleTemplate = String(values.titleTemplate).trim()

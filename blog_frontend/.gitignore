@@ -18,6 +18,8 @@ coverage
 .vitepress/cache
 .vitepress/dist
 .vitepress/data
+# 说说数据：构建期由 scripts/sync-shuoshuo.mjs 从后端同步生成
+.vitepress/data/shuoshuo.json
 
 # Generated content
 /articles/*.md

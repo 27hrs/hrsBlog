@@ -33,6 +33,41 @@ class SiteSettingCatalogTest {
     }
 
     @Test
+    void shuoshuoSettingsArePublicStringsInReadingGroup() {
+        assertThat(SiteSettingCatalog.get("shuoshuoTitle")).satisfies(spec -> {
+            assertThat(spec.group()).isEqualTo("reading");
+            assertThat(spec.valueType()).isEqualTo(ValueType.STRING);
+            assertThat(spec.publicSetting()).isTrue();
+            assertThat(spec.max()).isEqualTo(60d);
+        });
+        assertThat(SiteSettingCatalog.get("shuoshuoDescription")).satisfies(spec -> {
+            assertThat(spec.group()).isEqualTo("reading");
+            assertThat(spec.valueType()).isEqualTo(ValueType.STRING);
+            assertThat(spec.publicSetting()).isTrue();
+            assertThat(spec.max()).isEqualTo(300d);
+        });
+        assertThat(SiteSettingCatalog.get("shuoshuoEmptyText")).satisfies(spec -> {
+            assertThat(spec.group()).isEqualTo("reading");
+            assertThat(spec.valueType()).isEqualTo(ValueType.STRING);
+            assertThat(spec.publicSetting()).isTrue();
+            assertThat(spec.max()).isEqualTo(200d);
+        });
+    }
+
+    @Test
+    void shuoshuoSettingsFollowGuestbookSettingsInSortOrder() {
+        // 说说三项紧跟在留言板三项之后（reading 组内排序连续）
+        int guestbookPageSize = SiteSettingCatalog.get("guestbookPageSize").sortOrder();
+        int title = SiteSettingCatalog.get("shuoshuoTitle").sortOrder();
+        int description = SiteSettingCatalog.get("shuoshuoDescription").sortOrder();
+        int emptyText = SiteSettingCatalog.get("shuoshuoEmptyText").sortOrder();
+
+        assertThat(title).isEqualTo(guestbookPageSize + 1);
+        assertThat(description).isEqualTo(title + 1);
+        assertThat(emptyText).isEqualTo(description + 1);
+    }
+
+    @Test
     void removedCommentSettingsAreGone() {
         assertThat(SiteSettingCatalog.contains("enableComments")).isFalse();
         assertThat(SiteSettingCatalog.contains("commentModeration")).isFalse();

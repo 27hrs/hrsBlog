@@ -35,8 +35,22 @@ export const siteConfig = {
     { label: '首页', link: '/' },
     { label: '文章', link: '/articles/' },
     { label: '友链', link: '/links/' },
+    { label: '说说', link: '/shuoshuo/' },
     { label: '关于', link: '/about' },
   ],
+
+  /**
+   * 说说页配置。
+   *
+   * 三项文案都能在后台「站点设置」里覆盖（`shuoshuoTitle` / `shuoshuoDescription` /
+   * `shuoshuoEmptyText`），构建期读不到时保留这里的本地默认值。
+   * 说说正文由 `scripts/sync-shuoshuo.mjs` 在构建期拉取并编译成静态 HTML。
+   */
+  shuoshuo: {
+    title: '说说',
+    description: '一些零碎的近况与随手记，不成篇，只记录。',
+    emptyText: '还没有留下说说，等第一条出现。',
+  },
 
   /**
    * 留言板配置。

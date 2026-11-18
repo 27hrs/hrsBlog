@@ -21,7 +21,8 @@ import java.util.Map;
  * </ul>
  *
  * <p>公开性约定：basic / identity / appearance / footer / about / seo 与 reading.friendLinks /
- * reading.enableGuestbook / reading.guestbookPageSize 会被博客前台消费，标记为公开；
+ * reading.enableGuestbook / reading.guestbookPageSize / reading.shuoshuoTitle /
+ * reading.shuoshuoDescription / reading.shuoshuoEmptyText 会被博客前台消费，标记为公开；
  * integrations（统计、webhook）与 advanced 属于运维私密配置，不进入访客接口。
  */
 public final class SiteSettingCatalog {
@@ -89,6 +90,11 @@ public final class SiteSettingCatalog {
         put(spec("friendLinks", "reading", ValueType.JSON, true, ++order, "友情链接 [{name,url}] 列表"));
         put(spec("enableGuestbook", "reading", ValueType.BOOLEAN, true, ++order, "是否展示留言板入口"));
         put(spec("guestbookPageSize", "reading", ValueType.NUMBER, true, ++order, "留言板每页数量", 1d, 50d));
+
+        // ── reading：说说页文案（公开：说说页标题、描述与空态提示由前台消费） ──
+        put(spec("shuoshuoTitle", "reading", ValueType.STRING, true, ++order, "说说页标题", 60d));
+        put(spec("shuoshuoDescription", "reading", ValueType.STRING, true, ++order, "说说页描述", 300d));
+        put(spec("shuoshuoEmptyText", "reading", ValueType.STRING, true, ++order, "说说空状态提示文案", 200d));
 
         // ── footer：页脚配置（公开：博客页脚版权/备案/同步时间展示） ──
         put(spec("footerStartYear", "footer", ValueType.NUMBER, true, ++order, "页脚版权起始年份", 1900d, 2100d));

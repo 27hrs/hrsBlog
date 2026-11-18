@@ -1,10 +1,10 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import MarkdownIt from 'markdown-it'
 import { fetchPublicSettings } from '../api/settings.js'
 import { isTruthyFlag, resolveApiBase, toPositiveInt } from '../api/config.js'
 import { loadEnv } from './lib/load-env.mjs'
+import { renderMarkdown } from './lib/markdown.mjs'
 import { applySettingsToSiteConfig } from './lib/site-settings.mjs'
 import { siteConfig } from '../.vitepress/site.config.mjs'
 
@@ -14,28 +14,14 @@ const OUTPUT_FILE = path.join(DATA_DIR, 'site-settings.json')
 
 loadEnv(ROOT)
 
-// 关于页正文构建期编译：html:false 禁用原始 HTML（与文章管线同策略，防注入）。
-const markdown = new MarkdownIt({ html: false, linkify: true })
-
-// 站外链接统一补 target/rel，避免跳失与 window.opener 风险。
-const defaultLinkOpen =
-  markdown.renderer.rules.link_open ||
-  ((tokens, idx, options, env, self) => self.renderToken(tokens, idx, options))
-markdown.renderer.rules.link_open = (tokens, idx, options, env, self) => {
-  const token = tokens[idx]
-  const href = token.attrGet('href') || ''
-  if (/^https?:\/\//i.test(href)) {
-    token.attrSet('target', '_blank')
-    token.attrSet('rel', 'noopener noreferrer')
-  }
-  return defaultLinkOpen(tokens, idx, options, env, self)
-}
+// 关于页正文构建期编译：共享渲染器（scripts/lib/markdown.mjs）内部是 html:false，
+// 禁用原始 HTML（与文章管线同策略，防注入）。
 
 /** 合并接口值并把 aboutContent 编译为 aboutHtml（SSG 预渲染进静态 HTML）。 */
 function buildSiteConfig(values) {
   const merged = applySettingsToSiteConfig(siteConfig, values)
   const content = merged.about?.content
-  merged.about = { content: content || '', html: content ? markdown.render(content) : '' }
+  merged.about = { content: content || '', html: content ? renderMarkdown(content) : '' }
   return merged
 }
 

@@ -44,6 +44,7 @@ pnpm format    # Prettier
 | `/dashboard` | 管理主页 | 统计卡 + Unovis 趋势图 + 最近评论/文章 + 待办 |
 | `/articles` | 文章管理 | 搜索、状态/分类/标签筛选、批量删除、分页 |
 | `/articles/new` | 文章投放 | md-editor-v3 编辑区 + 右侧设置面板 |
+| `/shuoshuo` | 说说管理 | 可见性筛选、分页列表、发布/撤回/删除、md-editor-v3 编辑弹窗 |
 | `/settings` | 站点设置 | 账号安全（用户名 / 密码）+ 注册表驱动的左侧分类导航 + SchemaForm |
 | `/logs` | 系统日志 | 通用系统日志列表：type / status 筛选 + 服务端分页 |
 
@@ -90,6 +91,16 @@ router + guard
 
 支持的字段类型：`input`、`textarea`、`number`、`select`、`switch`、`image`、`color`、`list`。字段支持 `rules`（required/max/min/url/email）、`visibleWhen`、`width` 等声明。
 
+> **键名必须与后端 `SiteSettingCatalog` 完全一致。** 后端保存走「整体替换」语义：
+> 本次没提交的旧键会被直接删除（`SiteSettingService.replaceAll`），而未知键会返回
+> 400「未知的配置项」。新增一个设置项要同时改 `settingsRegistry.js` 与
+> `backend/.../service/SiteSettingCatalog.java`（键名、分组、类型、长度上限），
+> 别只改一边。
+
+「阅读体验」分组里的 `shuoshuoTitle` / `shuoshuoDescription` / `shuoshuoEmptyText`
+是说说页的三项公开文案：改动后随站点配置进入博客前台的 `/shuoshuo/` 构建产物，
+留空则前台回退本地默认值。
+
 设置页会先尝试 `GET /api/admin/settings`，失败时回退到 `localStorage`；保存时优先调用 `PUT /api/admin/settings`，接口不存在则安全保存到本机并明确提示。后台当前没有这个接口，因此页面会展示「本机保存」状态。
 
 ## 与当前后端的接口差异
@@ -103,6 +114,7 @@ router + guard
 - `POST /api/admin/articles/batch-delete`（批量软删除，逐条返回成功 / 失败明细）
 - `GET /api/admin/assets`、`POST /api/admin/assets`、`DELETE /api/admin/assets/{id}`
 - `GET /api/admin/logs`（通用系统日志分页查询，支持 `type` / `status` 筛选）
+- `GET/POST /api/admin/shuoshuo`、`GET/PUT/DELETE /api/admin/shuoshuo/{id}`、`POST /api/admin/shuoshuo/{id}/publish|unpublish`（说说管理，见下节）
 
 因此前端做了明确、可移除的降级：
 
@@ -149,6 +161,39 @@ router + guard
 | 全部失败 | `toast.error(...)` 并列出失败明细 |
 | 仅勾选本地草稿 | 不调用后端，仍走本机记录移除（与原有行为一致） |
 
+## 说说管理
+
+管理后台「内容 → 说说管理」（`/shuoshuo`）用于撰写与发布说说，发布后进入博客前台
+`/shuoshuo/` 的时间线页。
+
+### 接口
+
+`src/api/shuoshuo.js` 封装全部管理端接口，统一 `silent: true`（提示由页面负责，避免双弹）。
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/api/admin/shuoshuo?visibility=&page=&size=` | 分页列表；`visibility` 可选 `PUBLIC` / `PRIVATE`，空串=不过滤；`page` 从 0 起，`size` 1–50 |
+| GET | `/api/admin/shuoshuo/{id}` | 详情 |
+| POST | `/api/admin/shuoshuo` | 新建，后端固定落成 `PRIVATE` 草稿 |
+| PUT | `/api/admin/shuoshuo/{id}` | 更新正文（只覆盖 content） |
+| POST | `/api/admin/shuoshuo/{id}/publish` | 发布：`published_at` 为空时后端回填当前时间 |
+| POST | `/api/admin/shuoshuo/{id}/unpublish` | 撤回：置回 `PRIVATE`，**保留** `published_at` |
+| DELETE | `/api/admin/shuoshuo/{id}` | 硬删除，响应 message 为「说说已删除」 |
+
+### 页面交互
+
+| 场景 | 行为 |
+| --- | --- |
+| 可见性筛选 | 全部说说 / 草稿 / 已发布；切换时页码重置为 1 |
+| 行内操作 | 编辑、发布（仅草稿）、撤回（仅已发布）、删除；发布/撤回期间只禁用当前行 |
+| 新建 / 编辑 | `AppModal` + md-editor-v3（实时预览、工具栏含预览与全屏）+ 字数计数；底部「保存 / 保存并发布」 |
+| 校验 | 正文必填且 ≤ 2000 字符（`SHUOSHUO_CONTENT_LIMIT`，与后端 DTO 一致）；后端 400 的 `fieldErrors.content` 回填到同一个错误对象 |
+| 删除确认 | 独立 `AppModal` 二次确认，不用 `window.confirm`；成功后 `toast.success('说说已删除')` 并刷新列表（末页删空自动回退页码） |
+| 空态 | `AppEmptyState` 文案随筛选变化（还没有说说 / 没有草稿说说 / 还没有已发布的说说） |
+
+正文以 **Markdown 原文**保存（前端不渲染 HTML）；博客前台在**构建期**用 markdown-it
+（`html: false`）编译成静态 HTML。
+
 ## 部署通知与系统日志
 
 后台「站点设置 → 集成」分组里的 `integrations` 段落承载「内容变更 → Webhook → CI 重建」链路的配置，
@@ -165,7 +210,8 @@ router + guard
 | `webhookDebounceSeconds` | 防抖窗口（秒） | number | `10` | 窗口内多次变更合并为一次 |
 | `webhookMaxRetries` | 失败重试次数 | number | `2` | 不含首次尝试 |
 
-后端只在配置**实际发生变化**或文章**被发布 / 已发布文章被更新**时才发通知；
+后端只在配置**实际发生变化**、文章**被发布 / 已发布文章被更新**、
+或说说**被发布 / 撤回 / 删除 / 已公开说说被更新**时才发通知；
 草稿编辑、保存相同配置都不触发。
 
 ### `GET /api/admin/logs`
