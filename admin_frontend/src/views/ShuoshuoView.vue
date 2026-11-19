@@ -21,6 +21,7 @@ import {
   updateShuoshuo,
 } from '@/api/shuoshuo.js'
 import { formatDateTime, formatRelative } from '@/utils/format.js'
+import { uploadEditorImages } from '@/services/editorImages.js'
 import { useThemeStore } from '@/stores/theme.js'
 import { useToastStore } from '@/stores/toast.js'
 
@@ -73,6 +74,7 @@ const toolbars = [
   'codeRow',
   'code',
   'link',
+  'image',
   '-',
   'revoke',
   'next',
@@ -542,8 +544,9 @@ watch(
               :preview="true"
               :max-length="SHUOSHUO_CONTENT_LIMIT"
               :disabled="savingEditor"
+              :on-upload-img="uploadEditorImages"
               language="zh-CN"
-              placeholder="写下此刻的想法…支持 Markdown、代码块、列表与链接。"
+              placeholder="写下此刻的想法…支持 Markdown、代码块、列表、图片与链接。"
             />
           </div>
 

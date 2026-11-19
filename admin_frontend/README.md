@@ -259,4 +259,7 @@ router + guard
 - `prefers-reduced-motion` 下关闭所有非必要动效。
 - 关键交互（按钮、输入、选择器、对话框、开关）均有 `:focus-visible` 焦点状态。
 - 上传封面走现有 `POST /api/admin/assets`，单文件上限 5MB，支持 JPG/PNG/WebP/GIF。
+- 文章编辑与说说编辑的图片上传共用 `src/services/editorImages.js`：md-editor-v3 的 `onUploadImg`
+  接管工具栏「上传图片 / 裁剪上传」、拖入与粘贴图片，逐张上传后把返回的 `/assets/image/**`
+  地址以 `![alt](url)` 插入正文；图片与正文一起以 Markdown 原文保存，前台按 Markdown 渲染。
 - 图标全部为内联 SVG，不依赖额外图标字体。

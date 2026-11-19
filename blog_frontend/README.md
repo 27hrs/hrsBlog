@@ -120,6 +120,9 @@ composables/useShuoshuo.js → views/ShuoshuoView.vue → /shuoshuo/ 静态页
 - **Markdown 构建期编译**：正文在 `sync-shuoshuo.mjs` 里就用 markdown-it（`html: false`，与关于页
   同一策略）编译成 HTML 存进 `html` 字段，浏览器端只做 `v-html` 渲染，不再解析 Markdown。
   共享渲染器在 `scripts/lib/markdown.mjs`（`sync-settings.mjs` 也改用它）。
+- **图片与文章一致**：后台说说编辑器上传的图片以 `![alt](url)` 写进正文（`/assets/image/**`），
+  构建期同正文一起编译成 `<img>`；图片未及缓存进构建产物时由 nginx 的 `/assets/image/`
+  反代兜底，与文章封面同一套机制。
 - **时间按 Asia/Shanghai 解读**：后端存的是无时区的 `LocalDateTime`，构建期统一按
   `+08:00` 解释并输出带偏移的 ISO 串；视图分组时再用 `Intl.DateTimeFormat` 按
   `Asia/Shanghai` 二次拆解，运行环境的时区不会影响年/月分组。

@@ -247,6 +247,8 @@ sync-shuoshuo.mjs（构建期）──► .vitepress/data/shuoshuo.json ──�
   重新发布时条目回到原来的时间线位置，而不是跳到最新一条。
 - **Markdown 构建期编译**：正文以 Markdown 原文入库，构建期由 markdown-it（`html: false`）
   编译成静态 HTML 写进构建产物，浏览器端不再解析 Markdown。
+- **支持图片**：后台说说编辑器可上传图片（复用 `POST /api/admin/assets`，落盘后以
+  `/assets/image/**` 提供），插入的 `![alt](url)` 随正文保存，构建期与文章一样按 Markdown 渲染。
 - **访客接口只返回公开条目**：响应仅含 `id` / `content` / `publishedAt`，
   草稿痕迹与编辑记录都不外泄。
 - **自动重建**：发布 / 撤回 / 删除 / 已公开说说被编辑时触发与文章发布同一套

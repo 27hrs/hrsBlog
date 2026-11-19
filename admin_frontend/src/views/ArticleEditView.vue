@@ -7,6 +7,7 @@ import AppIcon from '@/components/common/AppIcon.vue'
 import AppModal from '@/components/common/AppModal.vue'
 import ArticleSettingsPanel from '@/components/editor/ArticleSettingsPanel.vue'
 import { createArticle, getAdminArticle, getPublishedArticle, updateArticle } from '@/api/articles.js'
+import { uploadEditorImages } from '@/services/editorImages.js'
 import { getLocalArticle, rememberArticle } from '@/services/localLibrary.js'
 import { useArticleDraftStore } from '@/stores/articleDraft.js'
 import { useThemeStore } from '@/stores/theme.js'
@@ -400,8 +401,9 @@ function keepAsDraft() {
               :theme="theme.isDark ? 'dark' : 'light'"
               :toolbars="toolbars"
               :preview="true"
+              :on-upload-img="uploadEditorImages"
               language="zh-CN"
-              placeholder="从这里开始写作。支持 Markdown、代码块、表格与图片链接…"
+              placeholder="从这里开始写作。支持 Markdown、代码块、表格与图片上传…"
             />
           </div>
           <p v-if="errors.content" class="form-error markdown-error">
